@@ -53,9 +53,15 @@ class AIService:
         if cached:
             return cached
 
-        prompt = compatibility_prompt(user, candidate)
+        # Short prompt to avoid 400 errors
+        prompt = (
+            f"Оцени совместимость двух людей для знакомств (0-100).\n"
+            f"Человек 1: возраст {user.get('age')}, цели: {user.get('relationship_goals') or 'не указаны'}, о себе: {str(user.get('about_me') or '')[:200]}\n"
+            f"Человек 2: возраст {candidate.get('age')}, цели: {candidate.get('relationship_goals') or 'не указаны'}, о себе: {str(candidate.get('about_me') or '')[:200]}\n"
+            f"Ответь в JSON: {{\"score\": число, \"explanation\": \"текст\", \"key_factors\": []}}"
+        )
         try:
-            response = await self.groq.generate(prompt, temperature=0.3)
+            response = await self.groq.generate(prompt, temperature=0.3, max_tokens=200)
             result = _parse_json(response) or {"score": 50, "explanation": "Анализ недоступен", "key_factors": []}
         except Exception as e:
             logger.error("compatibility_error", error=str(e))
@@ -68,15 +74,24 @@ class AIService:
         """Rewrite 'about me' and suggest tags using AI."""
         if not self._ai_available():
             return {"about_me": profile.get("about_me", ""), "suggested_tags": []}
-        prompt = improve_profile_prompt(profile)
+        about_me = profile.get("about_me") or ""
+        if not about_me.strip():
+            return {"about_me": "", "suggested_tags": []}
+        # Simple focused prompt to avoid 400 errors
+        prompt = (
+            f"Улучши текст 'О себе' для приложения знакомств. "
+            f"Сделай его привлекательным и живым. "
+            f"Текущий текст: {about_me[:500]}\n\n"
+            f"Ответь в JSON: {{\"about_me\": \"улучшенный текст\", \"suggested_tags\": [\"тег1\", \"тег2\"]}}"
+        )
         try:
-            response = await self.groq.generate(prompt, temperature=0.7)
+            response = await self.groq.generate(prompt, temperature=0.7, max_tokens=300)
             result = _parse_json(response)
             if result:
                 return result
         except Exception as e:
             logger.error("improve_profile_error", error=str(e))
-        return {"about_me": profile.get("about_me", ""), "suggested_tags": []}
+        return {"about_me": about_me, "suggested_tags": []}
 
     async def generate_icebreakers(self, profile: dict, target_profile: dict) -> List[Dict[str, str]]:
         """Generate 5 icebreaker messages for starting a conversation."""

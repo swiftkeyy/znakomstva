@@ -40,15 +40,19 @@ class GroqClient:
             "temperature": temperature,
             "max_tokens": max_tokens,
         }
-        session = await self._get_session()
         last_error: Exception = RuntimeError("No attempts")
 
         for attempt in range(max_retries):
             try:
-                async with session.post(f"{GROQ_BASE_URL}/chat/completions", json=payload) as resp:
-                    resp.raise_for_status()
-                    data = await resp.json()
-                    return data["choices"][0]["message"]["content"]
+                # Create fresh session per request to avoid unclosed session issues
+                async with aiohttp.ClientSession(
+                    timeout=aiohttp.ClientTimeout(total=30),
+                    headers={"Authorization": f"Bearer {self.api_key}"},
+                ) as session:
+                    async with session.post(f"{GROQ_BASE_URL}/chat/completions", json=payload) as resp:
+                        resp.raise_for_status()
+                        data = await resp.json()
+                        return data["choices"][0]["message"]["content"]
             except Exception as e:
                 last_error = e
                 delay = 2 ** attempt
