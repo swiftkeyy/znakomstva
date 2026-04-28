@@ -30,8 +30,8 @@ sentry-sdk==2.19.2
 # Scheduling
 apscheduler==3.10.4
 
-# Payments
-aiofiles==24.1.0
+# File operations
+aiofiles==23.2.1
 
 # Testing
 pytest==8.3.4
