@@ -11,6 +11,6 @@
 # RedisStorage автоматически сериализует состояния FSM и данные пользователей
 # в Redis, обеспечивая персистентность между перезапусками бота.
 
-from ultradating.bot.utils.cache_manager import CacheManager
+from bot.utils.cache_manager import CacheManager
 
 __all__ = ["CacheManager"]
