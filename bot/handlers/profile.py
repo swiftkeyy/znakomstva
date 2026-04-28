@@ -14,10 +14,8 @@ router = Router(name="profile")
 # ── Show profile ──────────────────────────────────────────────────────────────
 
 @router.message(F.text == "👤 Мой профиль")
-async def show_profile(message: Message, data: dict) -> None:
-    user = data["user"]
-    session = data["session"]
-
+async def show_profile(message: Message, user=None, session=None) -> None:
+        
     try:
         from database.repositories.profile_repository import ProfileRepository
         profile_repo = ProfileRepository(session)
@@ -45,25 +43,23 @@ async def show_profile(message: Message, data: dict) -> None:
 # ── ProfileCallback actions ───────────────────────────────────────────────────
 
 @router.callback_query(ProfileCallback.filter(F.action == "edit"))
-async def profile_edit(callback: CallbackQuery, state: FSMContext, data: dict) -> None:
+async def profile_edit(callback: CallbackQuery, state: FSMContext, user=None, session=None) -> None:
     await callback.answer()
     await state.set_state(ProfileEditStates.edit_about_me)
     await callback.message.answer("✏️ Введи новый текст «О себе»:")
 
 
 @router.callback_query(ProfileCallback.filter(F.action == "photos"))
-async def profile_photos(callback: CallbackQuery, state: FSMContext, data: dict) -> None:
+async def profile_photos(callback: CallbackQuery, state: FSMContext, user=None, session=None) -> None:
     await callback.answer()
     await state.set_state(ProfileEditStates.add_photo)
     await callback.message.answer("📸 Отправь фото для добавления в профиль:")
 
 
 @router.callback_query(ProfileCallback.filter(F.action == "ai_improve"))
-async def profile_ai_improve(callback: CallbackQuery, data: dict) -> None:
+async def profile_ai_improve(callback: CallbackQuery, user=None, session=None) -> None:
     await callback.answer("⏳ Улучшаю профиль через AI…")
-    user = data["user"]
-    session = data["session"]
-
+        
     try:
         from database.repositories.profile_repository import ProfileRepository
         from bot.services.ai_service import AIService
@@ -119,20 +115,20 @@ async def profile_ai_improve(callback: CallbackQuery, data: dict) -> None:
 
 
 @router.callback_query(F.data == "ai_improve:confirm")
-async def ai_improve_confirm(callback: CallbackQuery, data: dict) -> None:
+async def ai_improve_confirm(callback: CallbackQuery, user=None, session=None) -> None:
     await callback.answer("✅ Профиль обновлён!")
     await callback.message.edit_reply_markup(reply_markup=None)
-    logger.info("ai_improve_confirmed", user_id=data["user"].id)
+    logger.info("ai_improve_confirmed", user_id=user.id)
 
 
 @router.callback_query(F.data == "ai_improve:reject")
-async def ai_improve_reject(callback: CallbackQuery, data: dict) -> None:
+async def ai_improve_reject(callback: CallbackQuery, user=None, session=None) -> None:
     await callback.answer("❌ Изменения отклонены.")
     await callback.message.edit_reply_markup(reply_markup=None)
 
 
 @router.callback_query(ProfileCallback.filter(F.action == "verify"))
-async def profile_verify(callback: CallbackQuery, data: dict) -> None:
+async def profile_verify(callback: CallbackQuery, user=None, session=None) -> None:
     await callback.answer()
     from bot.keyboards import verification_keyboard
     await callback.message.answer(
@@ -143,7 +139,7 @@ async def profile_verify(callback: CallbackQuery, data: dict) -> None:
 
 
 @router.callback_query(ProfileCallback.filter(F.action == "stories"))
-async def profile_stories(callback: CallbackQuery, data: dict) -> None:
+async def profile_stories(callback: CallbackQuery, user=None, session=None) -> None:
     await callback.answer()
     await callback.message.answer("📖 Переходим к историям…")
 
@@ -299,11 +295,9 @@ async def _show_registration_summary(message: Message, state: FSMContext) -> Non
 
 
 @router.callback_query(F.data == "reg:confirm", RegistrationStates.confirm)
-async def reg_confirm(callback: CallbackQuery, state: FSMContext, data: dict) -> None:
+async def reg_confirm(callback: CallbackQuery, state: FSMContext, user=None, session=None) -> None:
     await callback.answer()
-    user = data["user"]
-    session = data["session"]
-    d = await state.get_data()
+            d = await state.get_data()
 
     try:
         from database.repositories.profile_repository import ProfileRepository
@@ -364,10 +358,8 @@ async def reg_restart(callback: CallbackQuery, state: FSMContext) -> None:
 # ── ProfileEditStates handlers ────────────────────────────────────────────────
 
 @router.message(ProfileEditStates.edit_about_me)
-async def edit_about_me(message: Message, state: FSMContext, data: dict) -> None:
-    user = data["user"]
-    session = data["session"]
-    try:
+async def edit_about_me(message: Message, state: FSMContext, user=None, session=None) -> None:
+            try:
         from database.repositories.profile_repository import ProfileRepository
         repo = ProfileRepository(session)
         await repo.update_about_me(user.id, message.text.strip())
@@ -380,10 +372,8 @@ async def edit_about_me(message: Message, state: FSMContext, data: dict) -> None
 
 
 @router.message(ProfileEditStates.add_photo, F.photo)
-async def edit_add_photo(message: Message, state: FSMContext, data: dict) -> None:
-    user = data["user"]
-    session = data["session"]
-    try:
+async def edit_add_photo(message: Message, state: FSMContext, user=None, session=None) -> None:
+            try:
         from database.repositories.profile_repository import ProfileRepository
         repo = ProfileRepository(session)
         await repo.add_photo(user.id, message.photo[-1].file_id)
@@ -392,3 +382,6 @@ async def edit_add_photo(message: Message, state: FSMContext, data: dict) -> Non
     except Exception as e:
         logger.error("add_photo_error", user_id=user.id, error=str(e))
         await message.answer("Ошибка при добавлении фото. Попробуй позже.")
+
+
+

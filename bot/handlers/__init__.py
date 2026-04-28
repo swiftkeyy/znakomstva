@@ -42,3 +42,6 @@ def register_all_handlers(dp: Dispatcher) -> None:
     dp.include_router(settings_router)
     dp.include_router(stats_router)
     dp.include_router(payments_router)
+
+
+

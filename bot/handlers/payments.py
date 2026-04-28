@@ -15,10 +15,8 @@ async def pre_checkout(query: PreCheckoutQuery) -> None:
 
 
 @router.message(lambda m: m.successful_payment is not None)
-async def successful_payment(message: Message, data: dict) -> None:
-    user = data["user"]
-    session = data["session"]
-    payment = message.successful_payment
+async def successful_payment(message: Message, user=None, session=None) -> None:
+            payment = message.successful_payment
 
     try:
         from bot.services.payment_service import PaymentService
@@ -73,3 +71,6 @@ async def successful_payment(message: Message, data: dict) -> None:
             "⚠️ Оплата получена, но возникла ошибка при обработке.\n"
             "Обратись в поддержку."
         )
+
+
+

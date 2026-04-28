@@ -11,9 +11,8 @@ router = Router(name="settings")
 
 
 @router.message(F.text == "⚙️ Настройки")
-async def show_settings(message: Message, data: dict) -> None:
-    user = data["user"]
-
+async def show_settings(message: Message, user=None, session=None) -> None:
+    
     await message.answer(
         "⚙️ <b>Настройки</b>",
         parse_mode="HTML",
@@ -23,11 +22,9 @@ async def show_settings(message: Message, data: dict) -> None:
 
 
 @router.callback_query(SettingsCallback.filter(F.action == "toggle_reports"))
-async def settings_toggle_reports(callback: CallbackQuery, data: dict) -> None:
+async def settings_toggle_reports(callback: CallbackQuery, user=None, session=None) -> None:
     await callback.answer()
-    user = data["user"]
-    session = data["session"]
-
+        
     try:
         from database.repositories.user_repository import UserRepository
         user_repo = UserRepository(session)
@@ -47,7 +44,7 @@ async def settings_toggle_reports(callback: CallbackQuery, data: dict) -> None:
 
 
 @router.callback_query(SettingsCallback.filter(F.action == "location"))
-async def settings_location(callback: CallbackQuery, data: dict) -> None:
+async def settings_location(callback: CallbackQuery, user=None, session=None) -> None:
     await callback.answer()
     from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
     kb = ReplyKeyboardMarkup(
@@ -62,10 +59,8 @@ async def settings_location(callback: CallbackQuery, data: dict) -> None:
 
 
 @router.message(F.location)
-async def handle_location(message: Message, data: dict) -> None:
-    user = data["user"]
-    session = data["session"]
-
+async def handle_location(message: Message, user=None, session=None) -> None:
+        
     try:
         from database.repositories.profile_repository import ProfileRepository
         profile_repo = ProfileRepository(session)
@@ -85,7 +80,7 @@ async def handle_location(message: Message, data: dict) -> None:
 
 
 @router.callback_query(SettingsCallback.filter(F.action == "delete"))
-async def settings_delete(callback: CallbackQuery, data: dict) -> None:
+async def settings_delete(callback: CallbackQuery, user=None, session=None) -> None:
     await callback.answer()
     from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
     kb = InlineKeyboardMarkup(inline_keyboard=[
@@ -103,11 +98,9 @@ async def settings_delete(callback: CallbackQuery, data: dict) -> None:
 
 
 @router.callback_query(F.data == "settings:delete_confirm")
-async def settings_delete_confirm(callback: CallbackQuery, state: FSMContext, data: dict) -> None:
+async def settings_delete_confirm(callback: CallbackQuery, state: FSMContext, user=None, session=None) -> None:
     await callback.answer()
-    user = data["user"]
-    session = data["session"]
-
+        
     try:
         from database.repositories.user_repository import UserRepository
         user_repo = UserRepository(session)
@@ -130,11 +123,14 @@ async def settings_delete_cancel(callback: CallbackQuery) -> None:
 
 
 @router.callback_query(SettingsCallback.filter(F.action == "logout"))
-async def settings_logout(callback: CallbackQuery, state: FSMContext, data: dict) -> None:
+async def settings_logout(callback: CallbackQuery, state: FSMContext, user=None, session=None) -> None:
     await callback.answer()
     await state.clear()
     await callback.message.answer(
         "👋 Ты вышел из аккаунта.\n"
         "Используй /start для входа.",
     )
-    logger.info("user_logout", user_id=data["user"].id)
+    logger.info("user_logout", user_id=user.id)
+
+
+

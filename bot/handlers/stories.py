@@ -13,10 +13,8 @@ _STORY_UPLOAD_STATE = "story_upload"
 
 
 @router.message(F.text == "📖 Мои истории")
-async def show_stories(message: Message, data: dict) -> None:
-    user = data["user"]
-    session = data["session"]
-
+async def show_stories(message: Message, user=None, session=None) -> None:
+        
     try:
         from bot.services.story_service import StoryService
         from database.repositories.story_repository import StoryRepository
@@ -72,14 +70,12 @@ async def story_upload_start(callback: CallbackQuery, state: FSMContext) -> None
 
 
 @router.message(F.photo)
-async def story_upload_photo(message: Message, state: FSMContext, data: dict) -> None:
+async def story_upload_photo(message: Message, state: FSMContext, user=None, session=None) -> None:
     fsm_data = await state.get_data()
     if not fsm_data.get("awaiting_story"):
         return  # Not in story upload mode
 
-    user = data["user"]
-    session = data["session"]
-
+        
     try:
         from bot.services.story_service import StoryService
         from database.repositories.story_repository import StoryRepository
@@ -97,14 +93,12 @@ async def story_upload_photo(message: Message, state: FSMContext, data: dict) ->
 
 
 @router.message(F.video)
-async def story_upload_video(message: Message, state: FSMContext, data: dict) -> None:
+async def story_upload_video(message: Message, state: FSMContext, user=None, session=None) -> None:
     fsm_data = await state.get_data()
     if not fsm_data.get("awaiting_story"):
         return  # Not in story upload mode
 
-    user = data["user"]
-    session = data["session"]
-
+        
     try:
         from bot.services.story_service import StoryService
         from database.repositories.story_repository import StoryRepository
@@ -122,11 +116,9 @@ async def story_upload_video(message: Message, state: FSMContext, data: dict) ->
 
 
 @router.callback_query(StoryCallback.filter(F.action == "view"))
-async def story_view(callback: CallbackQuery, callback_data: StoryCallback, data: dict) -> None:
+async def story_view(callback: CallbackQuery, callback_data: StoryCallback, user=None, session=None) -> None:
     await callback.answer()
-    user = data["user"]
-    session = data["session"]
-
+        
     try:
         from bot.services.story_service import StoryService
         from database.repositories.story_repository import StoryRepository
@@ -153,11 +145,9 @@ async def story_view(callback: CallbackQuery, callback_data: StoryCallback, data
 
 
 @router.callback_query(StoryCallback.filter(F.action == "delete"))
-async def story_delete(callback: CallbackQuery, callback_data: StoryCallback, data: dict) -> None:
+async def story_delete(callback: CallbackQuery, callback_data: StoryCallback, user=None, session=None) -> None:
     await callback.answer()
-    user = data["user"]
-    session = data["session"]
-
+        
     try:
         from database.repositories.story_repository import StoryRepository
         story_repo = StoryRepository(session)
@@ -174,3 +164,6 @@ async def story_delete(callback: CallbackQuery, callback_data: StoryCallback, da
     except Exception as e:
         logger.error("story_delete_error", user_id=user.id, error=str(e))
         await callback.message.answer("Не удалось удалить историю. Попробуй позже.")
+
+
+

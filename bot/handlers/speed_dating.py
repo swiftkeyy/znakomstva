@@ -11,10 +11,8 @@ router = Router(name="speed_dating")
 
 
 @router.message(F.text == "⚡ Быстрые знакомства")
-async def speed_dating_menu(message: Message, data: dict) -> None:
-    user = data["user"]
-    session = data["session"]
-
+async def speed_dating_menu(message: Message, user=None, session=None) -> None:
+        
     try:
         from database.repositories.speed_dating_repository import SpeedDatingRepository
         sd_repo = SpeedDatingRepository(session)
@@ -57,9 +55,7 @@ async def speed_dating_join(
     data: dict,
 ) -> None:
     await callback.answer()
-    user = data["user"]
-    session = data["session"]
-    session_id = callback_data.session_id
+            session_id = callback_data.session_id
 
     try:
         from bot.services.speed_dating_service import SpeedDatingService
@@ -94,9 +90,7 @@ async def speed_dating_match_yes(
     data: dict,
 ) -> None:
     await callback.answer("❤️")
-    user = data["user"]
-    session = data["session"]
-    fsm_data = await state.get_data()
+            fsm_data = await state.get_data()
     pair_id = fsm_data.get("current_sd_pair_id")
 
     if pair_id is None:
@@ -138,9 +132,7 @@ async def speed_dating_match_no(
     data: dict,
 ) -> None:
     await callback.answer("❌")
-    user = data["user"]
-    session = data["session"]
-    fsm_data = await state.get_data()
+            fsm_data = await state.get_data()
     pair_id = fsm_data.get("current_sd_pair_id")
 
     if pair_id is None:
@@ -162,3 +154,6 @@ async def speed_dating_match_no(
     except Exception as e:
         logger.error("sd_match_no_error", user_id=user.id, error=str(e))
         await callback.message.answer("Ошибка. Попробуй позже.")
+
+
+

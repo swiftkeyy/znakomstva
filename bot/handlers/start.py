@@ -13,8 +13,9 @@ router = Router(name="start")
 
 
 @router.message(CommandStart())
-async def cmd_start(message: Message, state: FSMContext, data: dict) -> None:
-    user = data["user"]
+async def cmd_start(message: Message, state: FSMContext, user=None) -> None:
+    if user is None:
+        return
 
     # Handle referral payload: /start ref_12345
     args = message.text.split(maxsplit=1)
@@ -44,3 +45,6 @@ async def cmd_start(message: Message, state: FSMContext, data: dict) -> None:
         reply_markup=main_menu_keyboard(is_premium=user.is_premium),
     )
     logger.info("user_returned", user_id=user.id)
+
+
+

@@ -18,7 +18,7 @@ _BADGE_INFO = {
 
 
 @router.callback_query(VerificationCallback.filter(F.level == 1))
-async def verify_level_1_start(callback: CallbackQuery, state: FSMContext, data: dict) -> None:
+async def verify_level_1_start(callback: CallbackQuery, state: FSMContext, user=None, session=None) -> None:
     await callback.answer()
     await state.set_state(VerificationStates.level_1_waiting)
     await callback.message.answer(
@@ -30,7 +30,7 @@ async def verify_level_1_start(callback: CallbackQuery, state: FSMContext, data:
 
 
 @router.callback_query(VerificationCallback.filter(F.level == 2))
-async def verify_level_2_start(callback: CallbackQuery, state: FSMContext, data: dict) -> None:
+async def verify_level_2_start(callback: CallbackQuery, state: FSMContext, user=None, session=None) -> None:
     await callback.answer()
     await state.set_state(VerificationStates.level_2_waiting)
     await callback.message.answer(
@@ -42,7 +42,7 @@ async def verify_level_2_start(callback: CallbackQuery, state: FSMContext, data:
 
 
 @router.callback_query(VerificationCallback.filter(F.level == 3))
-async def verify_level_3_start(callback: CallbackQuery, state: FSMContext, data: dict) -> None:
+async def verify_level_3_start(callback: CallbackQuery, state: FSMContext, user=None, session=None) -> None:
     await callback.answer()
     await state.set_state(VerificationStates.level_3_waiting)
     await callback.message.answer(
@@ -54,10 +54,8 @@ async def verify_level_3_start(callback: CallbackQuery, state: FSMContext, data:
 
 
 @router.message(VerificationStates.level_1_waiting, F.photo)
-async def verify_level_1_photo(message: Message, state: FSMContext, data: dict) -> None:
-    user = data["user"]
-    session = data["session"]
-    await state.set_state(VerificationStates.processing)
+async def verify_level_1_photo(message: Message, state: FSMContext, user=None, session=None) -> None:
+            await state.set_state(VerificationStates.processing)
     await message.answer("⏳ Проверяю фото…")
 
     try:
@@ -98,10 +96,8 @@ async def verify_level_1_photo(message: Message, state: FSMContext, data: dict) 
 
 
 @router.message(VerificationStates.level_2_waiting, F.video)
-async def verify_level_2_video(message: Message, state: FSMContext, data: dict) -> None:
-    user = data["user"]
-    session = data["session"]
-    await state.set_state(VerificationStates.processing)
+async def verify_level_2_video(message: Message, state: FSMContext, user=None, session=None) -> None:
+            await state.set_state(VerificationStates.processing)
     await message.answer("⏳ Проверяю видео…")
 
     try:
@@ -138,10 +134,8 @@ async def verify_level_2_video(message: Message, state: FSMContext, data: dict) 
 
 
 @router.message(VerificationStates.level_3_waiting, F.photo)
-async def verify_level_3_photo(message: Message, state: FSMContext, data: dict) -> None:
-    user = data["user"]
-    session = data["session"]
-    await state.set_state(VerificationStates.processing)
+async def verify_level_3_photo(message: Message, state: FSMContext, user=None, session=None) -> None:
+            await state.set_state(VerificationStates.processing)
     await message.answer("⏳ Сравниваю лица через AI…")
 
     try:
@@ -190,3 +184,6 @@ async def verify_level_3_photo(message: Message, state: FSMContext, data: dict) 
         logger.error("verify_level_3_error", user_id=user.id, error=str(e))
         await state.clear()
         await message.answer("Ошибка при проверке. Попробуй позже.")
+
+
+

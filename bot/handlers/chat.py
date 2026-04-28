@@ -12,11 +12,9 @@ router = Router(name="chat")
 
 
 @router.message(ChatStates.messaging)
-async def forward_message(message: Message, state: FSMContext, data: dict) -> None:
+async def forward_message(message: Message, state: FSMContext, user=None, session=None) -> None:
     """Forward a text message to the matched partner."""
-    user = data["user"]
-    session = data["session"]
-    fsm_data = await state.get_data()
+            fsm_data = await state.get_data()
     match_id = fsm_data.get("active_match_id")
 
     if match_id is None:
@@ -61,11 +59,9 @@ async def forward_message(message: Message, state: FSMContext, data: dict) -> No
 
 
 @router.callback_query(ChatCallback.filter(F.action == "ai_hint"))
-async def chat_ai_hint(callback: CallbackQuery, callback_data: ChatCallback, state: FSMContext, data: dict) -> None:
+async def chat_ai_hint(callback: CallbackQuery, callback_data: ChatCallback, state: FSMContext, user=None, session=None) -> None:
     await callback.answer("⏳ Генерирую подсказки…")
-    user = data["user"]
-    session = data["session"]
-    match_id = callback_data.match_id
+            match_id = callback_data.match_id
 
     try:
         from database.repositories.match_repository import MatchRepository
@@ -127,11 +123,9 @@ async def chat_ai_hint(callback: CallbackQuery, callback_data: ChatCallback, sta
 
 
 @router.callback_query(ChatCallback.filter(F.action == "compatibility"))
-async def chat_compatibility(callback: CallbackQuery, callback_data: ChatCallback, data: dict) -> None:
+async def chat_compatibility(callback: CallbackQuery, callback_data: ChatCallback, user=None, session=None) -> None:
     await callback.answer("⏳ Считаю совместимость…")
-    user = data["user"]
-    session = data["session"]
-    match_id = callback_data.match_id
+            match_id = callback_data.match_id
 
     try:
         from database.repositories.match_repository import MatchRepository
@@ -187,7 +181,7 @@ async def chat_compatibility(callback: CallbackQuery, callback_data: ChatCallbac
 
 
 @router.callback_query(ChatCallback.filter(F.action == "gift"))
-async def chat_gift(callback: CallbackQuery, callback_data: ChatCallback, data: dict) -> None:
+async def chat_gift(callback: CallbackQuery, callback_data: ChatCallback, user=None, session=None) -> None:
     await callback.answer()
     await callback.message.answer(
         "🎁 Функция подарков скоро будет доступна!\n"
@@ -203,9 +197,7 @@ async def ai_suggestion_send(
     data: dict,
 ) -> None:
     await callback.answer()
-    user = data["user"]
-    session = data["session"]
-    fsm_data = await state.get_data()
+            fsm_data = await state.get_data()
     suggestions = fsm_data.get("ai_suggestions", {})
     match_id = callback_data.match_id
     action = callback_data.action  # bold, warm, playful
@@ -253,3 +245,6 @@ async def ai_suggestion_send(
     except Exception as e:
         logger.error("ai_suggestion_send_error", user_id=user.id, error=str(e))
         await callback.message.answer("Не удалось отправить сообщение. Попробуй позже.")
+
+
+

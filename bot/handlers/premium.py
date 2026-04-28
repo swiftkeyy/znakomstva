@@ -18,9 +18,8 @@ _CRYSTAL_AMOUNTS = {
 
 
 @router.message(F.text == "💎 Бусты и кристаллы")
-async def show_premium(message: Message, data: dict) -> None:
-    user = data["user"]
-    status = "✅ Premium активен" if user.is_premium else "❌ Premium не активен"
+async def show_premium(message: Message, user=None, session=None) -> None:
+        status = "✅ Premium активен" if user.is_premium else "❌ Premium не активен"
     await message.answer(
         f"💎 <b>Бусты и кристаллы</b>\n\n"
         f"Статус: {status}\n"
@@ -33,10 +32,9 @@ async def show_premium(message: Message, data: dict) -> None:
 
 
 @router.callback_query(PremiumCallback.filter())
-async def premium_callback(callback: CallbackQuery, callback_data: PremiumCallback, data: dict) -> None:
+async def premium_callback(callback: CallbackQuery, callback_data: PremiumCallback, user=None, session=None) -> None:
     await callback.answer()
-    user = data["user"]
-    action = callback_data.action
+        action = callback_data.action
 
     try:
         from bot.services.payment_service import PaymentService
@@ -44,8 +42,7 @@ async def premium_callback(callback: CallbackQuery, callback_data: PremiumCallba
         from database.repositories.transaction_repository import TransactionRepository
         from bot.config import settings as cfg
 
-        session = data["session"]
-        payment_service = PaymentService(
+                payment_service = PaymentService(
             UserRepository(session),
             TransactionRepository(session),
         )
@@ -73,3 +70,6 @@ async def premium_callback(callback: CallbackQuery, callback_data: PremiumCallba
     except Exception as e:
         logger.error("premium_callback_error", user_id=user.id, action=action, error=str(e))
         await callback.message.answer("Не удалось создать счёт. Попробуй позже.")
+
+
+

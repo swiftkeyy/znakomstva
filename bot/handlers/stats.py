@@ -8,10 +8,8 @@ router = Router(name="stats")
 
 
 @router.message(F.text == "📊 Статистика")
-async def show_stats(message: Message, data: dict) -> None:
-    user = data["user"]
-    session = data["session"]
-
+async def show_stats(message: Message, user=None, session=None) -> None:
+        
     try:
         from database.repositories.match_repository import MatchRepository
         from database.repositories.message_repository import MessageRepository
@@ -45,3 +43,6 @@ async def show_stats(message: Message, data: dict) -> None:
     except Exception as e:
         logger.error("show_stats_error", user_id=user.id, error=str(e))
         await message.answer("Не удалось загрузить статистику. Попробуй позже.")
+
+
+
