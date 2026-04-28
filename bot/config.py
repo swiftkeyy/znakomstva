@@ -26,13 +26,11 @@ class Settings(BaseSettings):
     redis_url: str = Field(default="redis://localhost:6379/0")
     redis_pool_size: int = Field(default=10)
 
-    # OpenRouter AI
+    # OpenRouter AI (legacy, not used)
     openrouter_api_key: str = Field(default="")
-    openrouter_base_url: str = Field(default="https://openrouter.ai/api/v1")
-    openrouter_text_model: str = Field(default=OPENROUTER_MODEL_TEXT)
-    openrouter_vision_model: str = Field(default=OPENROUTER_MODEL_VISION)
-    openrouter_reasoning_model: str = Field(default=OPENROUTER_MODEL_REASONING)
-    openrouter_timeout: int = Field(default=60)
+
+    # Groq AI (primary)
+    groq_api_key: str = Field(default="")
 
     # Payments (Telegram Stars only)
     # No provider token needed for Stars

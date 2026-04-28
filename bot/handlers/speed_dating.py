@@ -93,3 +93,5 @@ async def speed_dating_match_no(callback: CallbackQuery, callback_data: SpeedDat
     except Exception as e:
         logger.error("sd_match_no_error", user_id=user.id, error=str(e))
         await callback.message.answer("Ошибка. Попробуй позже.")
+
+

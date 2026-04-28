@@ -92,3 +92,5 @@ async def settings_logout(callback: CallbackQuery, state: FSMContext, user=None,
     await callback.answer()
     await state.clear()
     await callback.message.answer("👋 Ты вышел из аккаунта.\nИспользуй /start для входа.")
+
+

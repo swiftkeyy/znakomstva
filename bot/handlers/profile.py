@@ -71,7 +71,7 @@ async def profile_ai_improve(callback: CallbackQuery, user=None, session=None) -
     try:
         from database.repositories.profile_repository import ProfileRepository
         from bot.services.ai_service import AIService
-        from bot.openrouter_client import OpenRouterClient
+        from bot.groq_client import GroqClient
         from bot.utils.cache_manager import CacheManager
 
         profile = await ProfileRepository(session).get_by_user_id(user.id)
@@ -79,7 +79,7 @@ async def profile_ai_improve(callback: CallbackQuery, user=None, session=None) -
             await callback.message.answer("Профиль не найден.")
             return
 
-        ai = AIService(OpenRouterClient(), CacheManager())
+        ai = AIService(GroqClient(), CacheManager())
         result = await ai.improve_profile({
             "about_me": profile.about_me,
             "age": profile.age,
@@ -355,3 +355,5 @@ async def edit_add_photo(message: Message, state: FSMContext, user=None, session
     except Exception as e:
         logger.error("add_photo_error", user_id=user.id, error=str(e))
         await message.answer("Ошибка при добавлении фото. Попробуй позже.")
+
+

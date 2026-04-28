@@ -27,12 +27,12 @@ async def _build_matching(session):
     from database.repositories.profile_repository import ProfileRepository
     from bot.services.ai_service import AIService
     from bot.services.matching_service import MatchingService
-    from bot.openrouter_client import OpenRouterClient
+    from bot.groq_client import GroqClient
     from bot.utils.cache_manager import CacheManager
     return MatchingService(
         UserRepository(session), ProfileRepository(session),
         SwipeRepository(session), MatchRepository(session),
-        AIService(OpenRouterClient(), CacheManager()),
+        AIService(GroqClient(), CacheManager()),
     )
 
 
@@ -140,7 +140,7 @@ async def swipe_like(callback: CallbackQuery, callback_data: SwipeCallback, stat
         from database.repositories.profile_repository import ProfileRepository
         from bot.services.ai_service import AIService
         from bot.services.matching_service import MatchingService
-        from bot.openrouter_client import OpenRouterClient
+        from bot.groq_client import GroqClient
         from bot.utils.cache_manager import CacheManager
 
         swipe_repo = SwipeRepository(session)
@@ -149,7 +149,7 @@ async def swipe_like(callback: CallbackQuery, callback_data: SwipeCallback, stat
         matching = MatchingService(
             UserRepository(session), ProfileRepository(session),
             swipe_repo, MatchRepository(session),
-            AIService(OpenRouterClient(), CacheManager()),
+            AIService(GroqClient(), CacheManager()),
         )        match = await matching.check_and_create_match(user.id, target_id)
         if match:
             await callback.message.answer("🎉 <b>Взаимная симпатия!</b>\nТеперь вы можете общаться.", parse_mode="HTML")
@@ -232,4 +232,6 @@ async def toggle_deep_search(message: Message, state: FSMContext, user=None, ses
     status = "включён 🔍" if deep else "выключен"
     await message.answer(f"Режим глубокого поиска {status}.")
     logger.info("deep_search_toggled", user_id=user.id, enabled=deep)
+
+
 

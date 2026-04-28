@@ -1,21 +1,16 @@
-"""AI service integrating OpenRouter for all AI-powered features."""
+"""AI service integrating Groq for all AI-powered features."""
 import json
 import re
 from typing import Any, Dict, List, Optional, Tuple
 
 import structlog
 
-from bot.openrouter_client import OpenRouterClient
+from bot.groq_client import GroqClient
 from bot.prompts import (
     chat_suggestions_prompt,
-    circle_gesture_prompt,
     compatibility_prompt,
     daily_tip_prompt,
-    deep_search_prompt,
-    face_verification_prompt,
-    icebreakers_prompt,
     improve_profile_prompt,
-    moderation_image_prompt,
     moderation_text_prompt,
 )
 from bot.utils.cache_manager import CacheManager
@@ -41,12 +36,12 @@ def _parse_json(text: str) -> Optional[Dict[str, Any]]:
 
 
 class AIService:
-    def __init__(self, openrouter: OpenRouterClient, cache: CacheManager) -> None:
-        self.openrouter = openrouter
+    def __init__(self, groq: GroqClient, cache: CacheManager) -> None:
+        self.groq = groq
         self.cache = cache
 
     def _ai_available(self) -> bool:
-        return bool(self.openrouter.api_key)
+        return bool(self.groq.api_key)
 
     async def calculate_compatibility(self, user: dict, candidate: dict) -> Dict[str, Any]:
         """Calculate compatibility score (0-100) between two profiles."""
@@ -60,7 +55,7 @@ class AIService:
 
         prompt = compatibility_prompt(user, candidate)
         try:
-            response = await self.openrouter.generate(prompt, temperature=0.3)
+            response = await self.groq.generate(prompt, temperature=0.3)
             result = _parse_json(response) or {"score": 50, "explanation": "Анализ недоступен", "key_factors": []}
         except Exception as e:
             logger.error("compatibility_error", error=str(e))
@@ -75,7 +70,7 @@ class AIService:
             return {"about_me": profile.get("about_me", ""), "suggested_tags": []}
         prompt = improve_profile_prompt(profile)
         try:
-            response = await self.openrouter.generate(prompt, temperature=0.7)
+            response = await self.groq.generate(prompt, temperature=0.7)
             result = _parse_json(response)
             if result:
                 return result
@@ -87,7 +82,7 @@ class AIService:
         """Generate 5 icebreaker messages for starting a conversation."""
         prompt = icebreakers_prompt(profile, target_profile)
         try:
-            response = await self.openrouter.generate(prompt, temperature=0.8)
+            response = await self.groq.generate(prompt, temperature=0.8)
             result = _parse_json(response)
             if result and "icebreakers" in result:
                 return result["icebreakers"]
@@ -101,7 +96,7 @@ class AIService:
         """Generate 3 response variants: bold, warm, playful."""
         prompt = chat_suggestions_prompt(chat_history, user_profile, partner_profile)
         try:
-            response = await self.openrouter.generate(prompt, temperature=0.8)
+            response = await self.groq.generate(prompt, temperature=0.8)
             result = _parse_json(response)
             if result:
                 return result.get("bold", ""), result.get("warm", ""), result.get("playful", "")
@@ -113,7 +108,7 @@ class AIService:
         """Check if text message is appropriate."""
         prompt = moderation_text_prompt(text)
         try:
-            response = await self.openrouter.generate(prompt, temperature=0.1)
+            response = await self.groq.generate(prompt, temperature=0.1)
             result = _parse_json(response)
             if result:
                 return result
@@ -125,7 +120,7 @@ class AIService:
         """Check if image is appropriate for dating app."""
         prompt = moderation_image_prompt()
         try:
-            response = await self.openrouter.generate_vision(prompt, image_bytes)
+            response = await self.groq.generate_vision(prompt, image_bytes)
             result = _parse_json(response)
             if result:
                 return result
@@ -137,7 +132,7 @@ class AIService:
         """Check if person in image makes a circle gesture."""
         prompt = circle_gesture_prompt()
         try:
-            response = await self.openrouter.generate_vision(prompt, image_bytes)
+            response = await self.groq.generate_vision(prompt, image_bytes)
             result = _parse_json(response)
             if result:
                 return result
@@ -150,7 +145,7 @@ class AIService:
         prompt = face_verification_prompt()
         try:
             # Use verification image for analysis
-            response = await self.openrouter.generate_vision(prompt, verification_image)
+            response = await self.groq.generate_vision(prompt, verification_image)
             result = _parse_json(response)
             if result:
                 return result
@@ -162,7 +157,7 @@ class AIService:
         """Find top-10 most compatible profiles using reasoning."""
         prompt = deep_search_prompt(user_profile, candidates)
         try:
-            response = await self.openrouter.generate_reasoning(prompt)
+            response = await self.groq.generate_reasoning(prompt)
             result = _parse_json(response)
             if result and "top_matches" in result:
                 return result["top_matches"]
@@ -174,10 +169,11 @@ class AIService:
         """Generate personalized daily tip for improving profile performance."""
         prompt = daily_tip_prompt(user_stats, profile)
         try:
-            response = await self.openrouter.generate(prompt, temperature=0.6)
+            response = await self.groq.generate(prompt, temperature=0.6)
             result = _parse_json(response)
             if result:
                 return result
         except Exception as e:
             logger.error("daily_tip_error", error=str(e))
         return {"tip": "Добавьте больше фото в профиль!", "action": "Загрузите 2-3 новых фото"}
+

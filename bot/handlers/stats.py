@@ -37,3 +37,5 @@ async def show_stats(message: Message, user=None, session=None) -> None:
     except Exception as e:
         logger.error("show_stats_error", user_id=user.id, error=str(e))
         await message.answer("Не удалось загрузить статистику. Попробуй позже.")
+
+

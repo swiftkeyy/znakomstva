@@ -42,3 +42,5 @@ async def successful_payment(message: Message, user=None, session=None) -> None:
     except Exception as e:
         logger.error("successful_payment_error", user_id=user.id, error=str(e))
         await message.answer("⚠️ Оплата получена, но возникла ошибка при обработке. Обратись в поддержку.")
+
+

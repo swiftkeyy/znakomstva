@@ -49,10 +49,10 @@ async def verify_level_1_photo(message: Message, state: FSMContext, user=None, s
         image_bytes = (await message.bot.download_file(file.file_path)).read()
         from bot.services.verification_service import VerificationService
         from bot.services.ai_service import AIService
-        from bot.openrouter_client import OpenRouterClient
+        from bot.groq_client import GroqClient
         from bot.utils.cache_manager import CacheManager
         from database.repositories.verification_repository import VerificationRepository
-        ver_service = VerificationService(VerificationRepository(session), AIService(OpenRouterClient(), CacheManager()))
+        ver_service = VerificationService(VerificationRepository(session), AIService(GroqClient(), CacheManager()))
         passed, msg = await ver_service.verify_level_1(user.id, image_bytes)
         await state.clear()
         prefix = "✅" if passed else "❌"
@@ -74,10 +74,10 @@ async def verify_level_2_video(message: Message, state: FSMContext, user=None, s
         video_bytes = (await message.bot.download_file(file.file_path)).read()
         from bot.services.verification_service import VerificationService
         from bot.services.ai_service import AIService
-        from bot.openrouter_client import OpenRouterClient
+        from bot.groq_client import GroqClient
         from bot.utils.cache_manager import CacheManager
         from database.repositories.verification_repository import VerificationRepository
-        ver_service = VerificationService(VerificationRepository(session), AIService(OpenRouterClient(), CacheManager()))
+        ver_service = VerificationService(VerificationRepository(session), AIService(GroqClient(), CacheManager()))
         passed, msg = await ver_service.verify_level_2(user.id, video_bytes)
         await state.clear()
         prefix = "✅" if passed else "❌"
@@ -108,10 +108,10 @@ async def verify_level_3_photo(message: Message, state: FSMContext, user=None, s
                 pass
         from bot.services.verification_service import VerificationService
         from bot.services.ai_service import AIService
-        from bot.openrouter_client import OpenRouterClient
+        from bot.groq_client import GroqClient
         from bot.utils.cache_manager import CacheManager
         from database.repositories.verification_repository import VerificationRepository
-        ver_service = VerificationService(VerificationRepository(session), AIService(OpenRouterClient(), CacheManager()))
+        ver_service = VerificationService(VerificationRepository(session), AIService(GroqClient(), CacheManager()))
         passed, msg = await ver_service.verify_level_3(user.id, verification_bytes, profile_bytes)
         await state.clear()
         prefix = "✅" if passed else "❌"
@@ -120,3 +120,5 @@ async def verify_level_3_photo(message: Message, state: FSMContext, user=None, s
         logger.error("verify_level_3_error", user_id=user.id, error=str(e))
         await state.clear()
         await message.answer("Ошибка при проверке. Попробуй позже.")
+
+

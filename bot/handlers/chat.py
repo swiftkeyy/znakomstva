@@ -50,7 +50,7 @@ async def chat_ai_hint(callback: CallbackQuery, callback_data: ChatCallback, sta
         from database.repositories.profile_repository import ProfileRepository
         from database.repositories.message_repository import MessageRepository
         from bot.services.ai_service import AIService
-        from bot.openrouter_client import OpenRouterClient
+        from bot.groq_client import GroqClient
         from bot.utils.cache_manager import CacheManager
 
         match = await MatchRepository(session).get_by_id(match_id)
@@ -63,7 +63,7 @@ async def chat_ai_hint(callback: CallbackQuery, callback_data: ChatCallback, sta
         partner_profile = await profile_repo.get_by_user_id(partner_id)
         history = await MessageRepository(session).get_recent(match_id, limit=10)
         history_dicts = [{"sender_id": m.sender_id, "content": m.content} for m in history]
-        ai = AIService(OpenRouterClient(), CacheManager())
+        ai = AIService(GroqClient(), CacheManager())
         user_dict = {"id": user.id, "about_me": user_profile.about_me if user_profile else ""}
         partner_dict = {"id": partner_id, "about_me": partner_profile.about_me if partner_profile else ""}
         bold, warm, playful = await ai.generate_chat_suggestions(history_dicts, user_dict, partner_dict)
@@ -91,7 +91,7 @@ async def chat_compatibility(callback: CallbackQuery, callback_data: ChatCallbac
         from database.repositories.match_repository import MatchRepository
         from database.repositories.profile_repository import ProfileRepository
         from bot.services.ai_service import AIService
-        from bot.openrouter_client import OpenRouterClient
+        from bot.groq_client import GroqClient
         from bot.utils.cache_manager import CacheManager
 
         match = await MatchRepository(session).get_by_id(match_id)
@@ -102,7 +102,7 @@ async def chat_compatibility(callback: CallbackQuery, callback_data: ChatCallbac
         profile_repo = ProfileRepository(session)
         up = await profile_repo.get_by_user_id(user.id)
         pp = await profile_repo.get_by_user_id(partner_id)
-        ai = AIService(OpenRouterClient(), CacheManager())
+        ai = AIService(GroqClient(), CacheManager())
         result = await ai.calculate_compatibility(
             {"id": user.id, "about_me": up.about_me if up else "", "mbti_type": up.mbti_type if up else None, "relationship_goals": up.relationship_goals if up else None},
             {"id": partner_id, "about_me": pp.about_me if pp else "", "mbti_type": pp.mbti_type if pp else None, "relationship_goals": pp.relationship_goals if pp else None},
@@ -157,3 +157,5 @@ async def ai_suggestion_send(callback: CallbackQuery, callback_data: AISuggestio
     except Exception as e:
         logger.error("ai_suggestion_send_error", user_id=user.id, error=str(e))
         await callback.message.answer("Не удалось отправить сообщение. Попробуй позже.")
+
+

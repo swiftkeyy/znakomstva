@@ -116,3 +116,5 @@ async def story_delete(callback: CallbackQuery, callback_data: StoryCallback, us
     except Exception as e:
         logger.error("story_delete_error", user_id=user.id, error=str(e))
         await callback.message.answer("Не удалось удалить историю. Попробуй позже.")
+
+

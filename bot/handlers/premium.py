@@ -75,3 +75,5 @@ async def premium_callback(callback: CallbackQuery, callback_data: PremiumCallba
     except Exception as e:
         logger.error("premium_callback_error", user_id=user.id, action=action, error=str(e))
         await callback.message.answer("Не удалось создать счёт. Попробуй позже.")
+
+
