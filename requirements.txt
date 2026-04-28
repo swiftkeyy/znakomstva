@@ -1,6 +1,5 @@
 # Telegram Bot
 aiogram==3.13.0
-aiogram-dialog==2.1.0
 
 # Database
 sqlalchemy==2.0.36
@@ -11,13 +10,10 @@ psycopg2-binary==2.9.10
 
 # Redis
 redis==5.2.1
-aioredis==2.0.1
 
-# AI
-langchain==0.3.7
-langchain-community==0.3.7
-llama-index==0.12.0
+# HTTP Client
 aiohttp==3.11.10
+httpx==0.28.1
 
 # Config & Validation
 pydantic==2.10.3
@@ -33,14 +29,6 @@ apscheduler==3.10.4
 # File operations
 aiofiles==23.2.1
 
-# Testing
-pytest==8.3.4
-pytest-asyncio==0.24.0
-pytest-cov==6.0.0
-hypothesis==6.122.3
-testcontainers==4.8.2
-
 # Utils
 python-dotenv==1.0.1
-httpx==0.28.1
 Pillow==11.0.0
