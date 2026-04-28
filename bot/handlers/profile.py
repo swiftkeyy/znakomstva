@@ -17,24 +17,31 @@ async def show_profile(message: Message, user=None, session=None) -> None:
         return
     try:
         from database.repositories.profile_repository import ProfileRepository
-        profile = await ProfileRepository(session).get_by_user_id(user.id)
+        from sqlalchemy import select
+        from database.models.profile import Profile, ProfilePhoto
+
+        profile_repo = ProfileRepository(session)
+        profile = await profile_repo.get_by_user_id(user.id)
         if profile is None:
             await message.answer("Профиль не найден. Используй /start для регистрации.")
             return
+
+        # Eagerly load photos
+        photos_result = await session.execute(
+            select(ProfilePhoto).where(ProfilePhoto.profile_id == profile.id).order_by(ProfilePhoto.position)
+        )
+        photos = list(photos_result.scalars().all())
 
         text = (
             f"👤 <b>{user.first_name}</b>, {profile.age} лет\n"
             f"📍 {profile.city or '—'}\n"
             f"📏 {profile.height or '—'} см\n"
             f"🎯 {profile.relationship_goals or '—'}\n"
-            f"🧠 MBTI: {profile.mbti_type or '—'}\n"
             f"💬 {profile.about_me or '—'}"
         )
 
-        # Send with photo if available
-        primary_photo = next((p for p in profile.photos if p.is_primary), None) or (profile.photos[0] if profile.photos else None)
-        if primary_photo:
-            await message.answer_photo(primary_photo.file_id, caption=text, parse_mode="HTML", reply_markup=profile_keyboard())
+        if photos:
+            await message.answer_photo(photos[0].file_id, caption=text, parse_mode="HTML", reply_markup=profile_keyboard())
         else:
             await message.answer(text, parse_mode="HTML", reply_markup=profile_keyboard())
     except Exception as e:
