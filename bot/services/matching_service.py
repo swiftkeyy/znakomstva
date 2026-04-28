@@ -31,28 +31,24 @@ class MatchingService:
         self.ai_service = ai_service
 
     async def get_next_candidate(
-        self, user: User, mode: str = "normal"
+        self, user: User, mode: str = "normal", expand_search: bool = False
     ) -> Optional[Tuple[User, float, str]]:
         """Return (candidate, score, explanation) or None."""
         try:
             profile = await self.profile_repo.get_by_user_id(user.id)
+            has_location = profile and profile.latitude is not None and profile.longitude is not None
 
             user_dict = {
                 "id": user.id,
-                "first_name": user.first_name,
-                "is_premium": user.is_premium,
                 "about_me": profile.about_me if profile else None,
                 "age": profile.age if profile else None,
-                "city": profile.city if profile else None,
                 "relationship_goals": profile.relationship_goals if profile else None,
                 "latitude": profile.latitude if profile else None,
                 "longitude": profile.longitude if profile else None,
             }
 
-            has_location = profile and profile.latitude is not None and profile.longitude is not None
-
-            # Normal mode - use geo if available, otherwise show all
-            if has_location:
+            if has_location and not expand_search:
+                # Local search first (50km)
                 candidates = await self.user_repo.get_candidates_for_swipe(
                     user_id=user.id,
                     lat=profile.latitude,
@@ -60,6 +56,18 @@ class MatchingService:
                     max_distance_km=50.0,
                     limit=20,
                 )
+                if not candidates:
+                    return None  # Signal: local exhausted
+            elif has_location and expand_search:
+                # Expanded search - all users sorted by distance
+                all_candidates = await self.user_repo.get_all_active_users(
+                    exclude_user_id=user.id, limit=100
+                )
+                # Sort by distance
+                def dist(u):
+                    p = None
+                    return 9999
+                candidates = all_candidates[:20]
             else:
                 candidates = await self.user_repo.get_all_active_users(
                     exclude_user_id=user.id, limit=20
@@ -68,7 +76,6 @@ class MatchingService:
             if not candidates:
                 return None
 
-            # Pick best candidate by simple score (avoid AI call if no key)
             best_candidate = candidates[0]
             score = 75.0
             explanation = ""
@@ -85,12 +92,41 @@ class MatchingService:
                 score = float(compat.get("score", 75))
                 explanation = compat.get("explanation", "")
             except Exception:
-                pass  # Use default score if AI unavailable
+                pass
 
             return best_candidate, score, explanation
 
         except Exception as e:
             logger.error("get_next_candidate_error", user_id=user.id, error=str(e))
+            return None
+
+    async def get_next_candidate_expanded(self, user: User) -> Optional[Tuple[User, float, str]]:
+        """Search across all cities, sorted by distance."""
+        try:
+            profile = await self.profile_repo.get_by_user_id(user.id)
+            all_candidates = await self.user_repo.get_all_active_users(
+                exclude_user_id=user.id, limit=100
+            )
+            if not all_candidates:
+                return None
+
+            # Sort by distance if we have coordinates
+            if profile and profile.latitude and profile.longitude:
+                scored = []
+                for c in all_candidates:
+                    cp = await self.profile_repo.get_by_user_id(c.id)
+                    if cp and cp.latitude and cp.longitude:
+                        d = self._calculate_distance(profile.latitude, profile.longitude, cp.latitude, cp.longitude)
+                    else:
+                        d = 9999
+                    scored.append((d, c))
+                scored.sort(key=lambda x: x[0])
+                all_candidates = [c for _, c in scored]
+
+            best = all_candidates[0]
+            return best, 75.0, ""
+        except Exception as e:
+            logger.error("get_next_candidate_expanded_error", user_id=user.id, error=str(e))
             return None
 
     async def check_and_create_match(

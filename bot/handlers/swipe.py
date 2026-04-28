@@ -2,57 +2,104 @@
 import structlog
 from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
 from bot.fsm import SwipeStates
-from bot.keyboards import SwipeCallback, main_menu_keyboard, swipe_keyboard
+from bot.keyboards import SwipeCallback, swipe_keyboard
 
 logger = structlog.get_logger(__name__)
 router = Router(name="swipe")
 
 
-async def _show_next_candidate(message, state, user, session):
-    """Helper to show next candidate."""
-    fsm_data = await state.get_data()
-    mode = "deep" if fsm_data.get("deep_search") else "normal"
-    try:
-        from database.repositories.match_repository import MatchRepository
-        from database.repositories.swipe_repository import SwipeRepository
-        from database.repositories.user_repository import UserRepository
-        from database.repositories.profile_repository import ProfileRepository
-        from bot.services.ai_service import AIService
-        from bot.services.matching_service import MatchingService
-        from bot.openrouter_client import OpenRouterClient
-        from bot.utils.cache_manager import CacheManager
+def _expand_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="✅ Да", callback_data="swipe:expand_yes"),
+            InlineKeyboardButton(text="❌ Нет", callback_data="swipe:expand_no"),
+        ]
+    ])
 
-        openrouter = OpenRouterClient()
-        cache = CacheManager()
-        ai = AIService(openrouter, cache)
-        matching = MatchingService(
-            UserRepository(session),
-            ProfileRepository(session),
-            SwipeRepository(session),
-            MatchRepository(session),
-            ai,
-        )
-        result = await matching.get_next_candidate(user, mode=mode)
+
+async def _build_matching(session):
+    from database.repositories.match_repository import MatchRepository
+    from database.repositories.swipe_repository import SwipeRepository
+    from database.repositories.user_repository import UserRepository
+    from database.repositories.profile_repository import ProfileRepository
+    from bot.services.ai_service import AIService
+    from bot.services.matching_service import MatchingService
+    from bot.openrouter_client import OpenRouterClient
+    from bot.utils.cache_manager import CacheManager
+    return MatchingService(
+        UserRepository(session), ProfileRepository(session),
+        SwipeRepository(session), MatchRepository(session),
+        AIService(OpenRouterClient(), CacheManager()),
+    )
+
+
+async def _send_candidate(message, state, candidate, session):
+    from database.repositories.profile_repository import ProfileRepository
+    from sqlalchemy import select
+    from database.models.profile import Profile, ProfilePhoto
+
+    profile_repo = ProfileRepository(session)
+    cand_profile = await profile_repo.get_by_user_id(candidate.id)
+
+    text = (
+        f"👤 <b>{candidate.first_name}</b>"
+        + (f", {cand_profile.age} лет" if cand_profile and cand_profile.age else "")
+        + (f"\n📍 {cand_profile.city}" if cand_profile and cand_profile.city else "")
+        + (f"\n💬 {cand_profile.about_me}" if cand_profile and cand_profile.about_me else "")
+    )
+
+    kb = swipe_keyboard(candidate.id)
+    await state.set_state(SwipeStates.viewing)
+
+    # Try to send with photo
+    if cand_profile:
+        from sqlalchemy.ext.asyncio import AsyncSession
+        from sqlalchemy import select as sa_select
+        try:
+            result = await session.execute(
+                sa_select(ProfilePhoto).where(ProfilePhoto.profile_id == cand_profile.id).order_by(ProfilePhoto.position).limit(1)
+            )
+            photo = result.scalar_one_or_none()
+            if photo:
+                await message.answer_photo(photo.file_id, caption=text, parse_mode="HTML", reply_markup=kb)
+                return
+        except Exception:
+            pass
+
+    await message.answer(text, parse_mode="HTML", reply_markup=kb)
+
+
+async def _show_next_candidate(message, state, user, session):
+    fsm_data = await state.get_data()
+    expand = fsm_data.get("expand_search", False)
+    try:
+        matching = await _build_matching(session)
+
+        if expand:
+            result = await matching.get_next_candidate_expanded(user)
+        else:
+            result = await matching.get_next_candidate(user)
+
         if result is None:
-            await message.answer("😔 Пока нет подходящих анкет. Загляни позже!")
+            if not expand:
+                # Local candidates exhausted - ask user
+                from database.repositories.profile_repository import ProfileRepository
+                profile = await ProfileRepository(session).get_by_user_id(user.id)
+                city = profile.city if profile and profile.city else "твоего города"
+                await message.answer(
+                    f"😔 Анкеты из <b>{city}</b> закончились.\n\nПоказать анкеты из других городов?",
+                    parse_mode="HTML",
+                    reply_markup=_expand_keyboard(),
+                )
+            else:
+                await message.answer("😔 Пока нет новых анкет. Загляни позже!")
             return
 
         candidate, score, explanation = result
-        profile_repo = ProfileRepository(session)
-        cand_profile = await profile_repo.get_by_user_id(candidate.id)
-
-        text = (
-            f"👤 <b>{candidate.first_name}</b>"
-            + (f", {cand_profile.age} лет" if cand_profile and cand_profile.age else "")
-            + (f"\n📍 {cand_profile.city}" if cand_profile and cand_profile.city else "")
-            + (f"\n💬 {cand_profile.about_me}" if cand_profile and cand_profile.about_me else "")
-            + f"\n\n🔮 Совместимость: {score}%"
-        )
-        await state.set_state(SwipeStates.viewing)
-        await message.answer(text, parse_mode="HTML", reply_markup=swipe_keyboard(candidate.id))
+        await _send_candidate(message, state, candidate, session)
     except Exception as e:
         logger.error("show_candidate_error", user_id=user.id, error=str(e))
         await message.answer("Не удалось загрузить анкеты. Попробуй позже.")
@@ -63,6 +110,21 @@ async def swipe_start(message: Message, state: FSMContext, user=None, session=No
     if user is None:
         return
     await _show_next_candidate(message, state, user, session)
+
+
+@router.callback_query(F.data == "swipe:expand_yes")
+async def swipe_expand_yes(callback: CallbackQuery, state: FSMContext, user=None, session=None) -> None:
+    await callback.answer()
+    await state.update_data(expand_search=True)
+    await callback.message.edit_reply_markup(reply_markup=None)
+    await _show_next_candidate(callback.message, state, user, session)
+
+
+@router.callback_query(F.data == "swipe:expand_no")
+async def swipe_expand_no(callback: CallbackQuery, user=None, session=None) -> None:
+    await callback.answer()
+    await callback.message.edit_reply_markup(reply_markup=None)
+    await callback.message.answer("⏳ Хорошо! Как только появятся новые анкеты из твоего города — сразу покажем. Загляни позже!")
 
 
 @router.callback_query(SwipeCallback.filter(F.action == "like"))
@@ -88,8 +150,7 @@ async def swipe_like(callback: CallbackQuery, callback_data: SwipeCallback, stat
             UserRepository(session), ProfileRepository(session),
             swipe_repo, MatchRepository(session),
             AIService(OpenRouterClient(), CacheManager()),
-        )
-        match = await matching.check_and_create_match(user.id, target_id)
+        )        match = await matching.check_and_create_match(user.id, target_id)
         if match:
             await callback.message.answer("🎉 <b>Взаимная симпатия!</b>\nТеперь вы можете общаться.", parse_mode="HTML")
             try:
