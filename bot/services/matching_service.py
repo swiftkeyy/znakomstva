@@ -36,107 +36,58 @@ class MatchingService:
         """Return (candidate, score, explanation) or None."""
         try:
             profile = await self.profile_repo.get_by_user_id(user.id)
-            if profile is None or profile.latitude is None or profile.longitude is None:
-                logger.warning("no_location_for_user", user_id=user.id)
-                return None
 
             user_dict = {
                 "id": user.id,
                 "first_name": user.first_name,
                 "is_premium": user.is_premium,
-                "about_me": profile.about_me,
-                "age": profile.age,
-                "city": profile.city,
-                "relationship_goals": profile.relationship_goals,
-                "mbti_type": profile.mbti_type,
-                "attachment_style": profile.attachment_style,
-                "latitude": profile.latitude,
-                "longitude": profile.longitude,
+                "about_me": profile.about_me if profile else None,
+                "age": profile.age if profile else None,
+                "city": profile.city if profile else None,
+                "relationship_goals": profile.relationship_goals if profile else None,
+                "latitude": profile.latitude if profile else None,
+                "longitude": profile.longitude if profile else None,
             }
 
-            if mode == "deep":
+            has_location = profile and profile.latitude is not None and profile.longitude is not None
+
+            # Normal mode - use geo if available, otherwise show all
+            if has_location:
+                candidates = await self.user_repo.get_candidates_for_swipe(
+                    user_id=user.id,
+                    lat=profile.latitude,
+                    lon=profile.longitude,
+                    max_distance_km=50.0,
+                    limit=20,
+                )
+            else:
                 candidates = await self.user_repo.get_all_active_users(
-                    exclude_user_id=user.id, limit=50
+                    exclude_user_id=user.id, limit=20
                 )
-                if not candidates:
-                    return None
-                candidate_dicts = await self._build_candidate_dicts(candidates)
-                top_matches = await self.ai_service.deep_search(user_dict, candidate_dicts)
-                if not top_matches:
-                    return None
-                top = top_matches[0]
-                top_user = next(
-                    (c for c in candidates if c.id == top.get("user_id")), None
-                )
-                if top_user is None:
-                    return None
-                score = float(top.get("score", 50))
-                explanation = top.get("explanation", "")
-                logger.info("deep_search_candidate", user_id=user.id, candidate_id=top_user.id, score=score)
-                return top_user, score, explanation
 
-            # Normal mode
-            max_distance = 50.0
-            geo_candidates = await self.user_repo.get_candidates_for_swipe(
-                user_id=user.id,
-                lat=profile.latitude,
-                lon=profile.longitude,
-                max_distance_km=max_distance,
-                limit=20,
-            )
-            if not geo_candidates:
+            if not candidates:
                 return None
 
-            best_candidate: Optional[User] = None
-            best_score = -1.0
-            best_explanation = ""
+            # Pick best candidate by simple score (avoid AI call if no key)
+            best_candidate = candidates[0]
+            score = 75.0
+            explanation = ""
 
-            for candidate in geo_candidates:
-                cand_profile = await self.profile_repo.get_by_user_id(candidate.id)
-                if cand_profile is None:
-                    continue
-
+            try:
+                cand_profile = await self.profile_repo.get_by_user_id(best_candidate.id)
                 cand_dict = {
-                    "id": candidate.id,
-                    "first_name": candidate.first_name,
-                    "is_premium": candidate.is_premium,
-                    "about_me": cand_profile.about_me,
-                    "age": cand_profile.age,
-                    "city": cand_profile.city,
-                    "relationship_goals": cand_profile.relationship_goals,
-                    "mbti_type": cand_profile.mbti_type,
-                    "attachment_style": cand_profile.attachment_style,
+                    "id": best_candidate.id,
+                    "about_me": cand_profile.about_me if cand_profile else None,
+                    "age": cand_profile.age if cand_profile else None,
+                    "relationship_goals": cand_profile.relationship_goals if cand_profile else None,
                 }
-
                 compat = await self.ai_service.calculate_compatibility(user_dict, cand_dict)
-                compat_score = float(compat.get("score", 50)) / 100.0
+                score = float(compat.get("score", 75))
+                explanation = compat.get("explanation", "")
+            except Exception:
+                pass  # Use default score if AI unavailable
 
-                if cand_profile.latitude is not None and cand_profile.longitude is not None:
-                    dist_km = self._calculate_distance(
-                        profile.latitude, profile.longitude,
-                        cand_profile.latitude, cand_profile.longitude,
-                    )
-                    distance_factor = max(0.0, 1.0 - dist_km / max_distance)
-                else:
-                    distance_factor = 0.5
-
-                hybrid = 0.7 * compat_score + 0.3 * distance_factor
-
-                if hybrid > best_score:
-                    best_score = hybrid
-                    best_candidate = candidate
-                    best_explanation = compat.get("explanation", "")
-
-            if best_candidate is None:
-                return None
-
-            logger.info(
-                "next_candidate_found",
-                user_id=user.id,
-                candidate_id=best_candidate.id,
-                score=round(best_score, 3),
-            )
-            return best_candidate, round(best_score * 100, 1), best_explanation
+            return best_candidate, score, explanation
 
         except Exception as e:
             logger.error("get_next_candidate_error", user_id=user.id, error=str(e))

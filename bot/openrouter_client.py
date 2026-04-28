@@ -28,9 +28,11 @@ class OpenRouterClient:
 
     async def _get_session(self) -> aiohttp.ClientSession:
         if self._session is None or self._session.closed:
+            if not self.api_key:
+                raise RuntimeError("OpenRouter API key not configured")
             headers = {
                 "Authorization": f"Bearer {self.api_key}",
-                "HTTP-Referer": settings.bot_username or "https://ultradating.bot",
+                "HTTP-Referer": "https://t.me/bot",
                 "X-Title": "UltraDating Bot",
             }
             self._session = aiohttp.ClientSession(

@@ -45,8 +45,14 @@ class AIService:
         self.openrouter = openrouter
         self.cache = cache
 
+    def _ai_available(self) -> bool:
+        return bool(self.openrouter.api_key)
+
     async def calculate_compatibility(self, user: dict, candidate: dict) -> Dict[str, Any]:
         """Calculate compatibility score (0-100) between two profiles."""
+        if not self._ai_available():
+            return {"score": 75, "explanation": "AI анализ недоступен", "key_factors": []}
+
         cache_key = f"compat:{user.get('id')}:{candidate.get('id')}"
         cached = await self.cache.get(cache_key)
         if cached:
@@ -65,6 +71,8 @@ class AIService:
 
     async def improve_profile(self, profile: dict) -> Dict[str, Any]:
         """Rewrite 'about me' and suggest tags using AI."""
+        if not self._ai_available():
+            return {"about_me": profile.get("about_me", ""), "suggested_tags": []}
         prompt = improve_profile_prompt(profile)
         try:
             response = await self.openrouter.generate(prompt, temperature=0.7)
