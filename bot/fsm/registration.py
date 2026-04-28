@@ -1,0 +1,16 @@
+from aiogram.fsm.state import State, StatesGroup
+
+
+class RegistrationStates(StatesGroup):
+    age = State()
+    city = State()
+    height = State()
+    relationship_goals = State()
+    mbti_type = State()
+    attachment_style = State()
+    interests = State()
+    about_me = State()
+    photos = State()
+    video_profile = State()
+    voice_greeting = State()
+    confirm = State()
