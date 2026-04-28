@@ -21,6 +21,7 @@ async def show_profile(message: Message, user=None, session=None) -> None:
         if profile is None:
             await message.answer("Профиль не найден. Используй /start для регистрации.")
             return
+
         text = (
             f"👤 <b>{user.first_name}</b>, {profile.age} лет\n"
             f"📍 {profile.city or '—'}\n"
@@ -29,7 +30,13 @@ async def show_profile(message: Message, user=None, session=None) -> None:
             f"🧠 MBTI: {profile.mbti_type or '—'}\n"
             f"💬 {profile.about_me or '—'}"
         )
-        await message.answer(text, parse_mode="HTML", reply_markup=profile_keyboard())
+
+        # Send with photo if available
+        primary_photo = next((p for p in profile.photos if p.is_primary), None) or (profile.photos[0] if profile.photos else None)
+        if primary_photo:
+            await message.answer_photo(primary_photo.file_id, caption=text, parse_mode="HTML", reply_markup=profile_keyboard())
+        else:
+            await message.answer(text, parse_mode="HTML", reply_markup=profile_keyboard())
     except Exception as e:
         logger.error("show_profile_error", user_id=user.id, error=str(e))
         await message.answer("Не удалось загрузить профиль. Попробуй позже.")
@@ -281,6 +288,13 @@ async def reg_confirm(callback: CallbackQuery, state: FSMContext, user=None, ses
             about_me=d.get("about_me"),
         )
         await user_repo.mark_registered(user.id)
+
+        # Save photo if provided
+        photo_file_id = d.get("photo_file_id")
+        if photo_file_id:
+            profile = await profile_repo.get_by_user_id(user.id)
+            if profile:
+                await profile_repo.add_photo(profile.id, photo_file_id, position=0)
 
         referral_from = d.get("referral_from")
         if referral_from:
