@@ -11,20 +11,16 @@ logger = structlog.get_logger(__name__)
 router = Router(name="profile")
 
 
-# ── Show profile ──────────────────────────────────────────────────────────────
-
 @router.message(F.text == "👤 Мой профиль")
 async def show_profile(message: Message, user=None, session=None) -> None:
-        
+    if user is None:
+        return
     try:
         from database.repositories.profile_repository import ProfileRepository
-        profile_repo = ProfileRepository(session)
-        profile = await profile_repo.get_by_user_id(user.id)
-
+        profile = await ProfileRepository(session).get_by_user_id(user.id)
         if profile is None:
             await message.answer("Профиль не найден. Используй /start для регистрации.")
             return
-
         text = (
             f"👤 <b>{user.first_name}</b>, {profile.age} лет\n"
             f"📍 {profile.city or '—'}\n"
@@ -34,13 +30,10 @@ async def show_profile(message: Message, user=None, session=None) -> None:
             f"💬 {profile.about_me or '—'}"
         )
         await message.answer(text, parse_mode="HTML", reply_markup=profile_keyboard())
-        logger.info("profile_shown", user_id=user.id)
     except Exception as e:
         logger.error("show_profile_error", user_id=user.id, error=str(e))
         await message.answer("Не удалось загрузить профиль. Попробуй позже.")
 
-
-# ── ProfileCallback actions ───────────────────────────────────────────────────
 
 @router.callback_query(ProfileCallback.filter(F.action == "edit"))
 async def profile_edit(callback: CallbackQuery, state: FSMContext, user=None, session=None) -> None:
@@ -59,56 +52,40 @@ async def profile_photos(callback: CallbackQuery, state: FSMContext, user=None, 
 @router.callback_query(ProfileCallback.filter(F.action == "ai_improve"))
 async def profile_ai_improve(callback: CallbackQuery, user=None, session=None) -> None:
     await callback.answer("⏳ Улучшаю профиль через AI…")
-        
+    if user is None:
+        return
     try:
         from database.repositories.profile_repository import ProfileRepository
         from bot.services.ai_service import AIService
         from bot.openrouter_client import OpenRouterClient
         from bot.utils.cache_manager import CacheManager
 
-        profile_repo = ProfileRepository(session)
-        profile = await profile_repo.get_by_user_id(user.id)
+        profile = await ProfileRepository(session).get_by_user_id(user.id)
         if profile is None:
             await callback.message.answer("Профиль не найден.")
             return
 
-        profile_dict = {
+        ai = AIService(OpenRouterClient(), CacheManager())
+        result = await ai.improve_profile({
             "about_me": profile.about_me,
             "age": profile.age,
             "city": profile.city,
             "relationship_goals": profile.relationship_goals,
             "mbti_type": profile.mbti_type,
-            "interests": profile.interests,
-        }
-
-        from bot.openrouter_client import OpenRouterClient
-        from bot.utils.cache_manager import CacheManager
-
-        openrouter = OpenRouterClient()
-        cache = CacheManager()
-        ai = AIService(openrouter, cache)
-        result = await ai.improve_profile(profile_dict)
+        })
 
         improved_text = result.get("about_me", "")
-        tags = result.get("suggested_tags", [])
-        tags_str = ", ".join(tags) if tags else "—"
+        tags_str = ", ".join(result.get("suggested_tags", [])) or "—"
 
         from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-        kb = InlineKeyboardMarkup(inline_keyboard=[
-            [
-                InlineKeyboardButton(text="✅ Применить", callback_data="ai_improve:confirm"),
-                InlineKeyboardButton(text="❌ Отклонить", callback_data="ai_improve:reject"),
-            ]
-        ])
-
+        kb = InlineKeyboardMarkup(inline_keyboard=[[
+            InlineKeyboardButton(text="✅ Применить", callback_data="ai_improve:confirm"),
+            InlineKeyboardButton(text="❌ Отклонить", callback_data="ai_improve:reject"),
+        ]])
         await callback.message.answer(
-            f"🤖 <b>AI-улучшение профиля</b>\n\n"
-            f"<b>О себе:</b>\n{improved_text}\n\n"
-            f"<b>Теги:</b> {tags_str}",
-            parse_mode="HTML",
-            reply_markup=kb,
+            f"🤖 <b>AI-улучшение профиля</b>\n\n<b>О себе:</b>\n{improved_text}\n\n<b>Теги:</b> {tags_str}",
+            parse_mode="HTML", reply_markup=kb,
         )
-        logger.info("ai_improve_shown", user_id=user.id)
     except Exception as e:
         logger.error("ai_improve_error", user_id=user.id, error=str(e))
         await callback.message.answer("Не удалось улучшить профиль. Попробуй позже.")
@@ -118,7 +95,6 @@ async def profile_ai_improve(callback: CallbackQuery, user=None, session=None) -
 async def ai_improve_confirm(callback: CallbackQuery, user=None, session=None) -> None:
     await callback.answer("✅ Профиль обновлён!")
     await callback.message.edit_reply_markup(reply_markup=None)
-    logger.info("ai_improve_confirmed", user_id=user.id)
 
 
 @router.callback_query(F.data == "ai_improve:reject")
@@ -133,8 +109,7 @@ async def profile_verify(callback: CallbackQuery, user=None, session=None) -> No
     from bot.keyboards import verification_keyboard
     await callback.message.answer(
         "✅ <b>Верификация профиля</b>\n\nВыбери уровень:",
-        parse_mode="HTML",
-        reply_markup=verification_keyboard(),
+        parse_mode="HTML", reply_markup=verification_keyboard(),
     )
 
 
@@ -184,10 +159,7 @@ async def reg_height(message: Message, state: FSMContext) -> None:
             return
     await state.update_data(height=height)
     await state.set_state(RegistrationStates.relationship_goals)
-    await message.answer(
-        "🎯 Что ты ищешь?\n\n"
-        "Варианты: серьёзные отношения, дружба, флирт, не знаю"
-    )
+    await message.answer("🎯 Что ты ищешь?\n\nВарианты: серьёзные отношения, дружба, флирт, не знаю")
 
 
 @router.message(RegistrationStates.relationship_goals)
@@ -200,8 +172,7 @@ async def reg_goals(message: Message, state: FSMContext) -> None:
 @router.message(RegistrationStates.mbti_type)
 async def reg_mbti(message: Message, state: FSMContext) -> None:
     text = message.text.strip().upper()
-    mbti = text if text != "-" else None
-    await state.update_data(mbti_type=mbti)
+    await state.update_data(mbti_type=text if text != "-" else None)
     await state.set_state(RegistrationStates.attachment_style)
     await message.answer(
         "💞 Стиль привязанности?\n\n"
@@ -234,8 +205,7 @@ async def reg_about_me(message: Message, state: FSMContext) -> None:
 
 @router.message(RegistrationStates.photos, F.photo)
 async def reg_photos(message: Message, state: FSMContext) -> None:
-    photo: PhotoSize = message.photo[-1]
-    await state.update_data(photo_file_id=photo.file_id)
+    await state.update_data(photo_file_id=message.photo[-1].file_id)
     await state.set_state(RegistrationStates.video_profile)
     await message.answer("🎥 Отправь короткое видео-знакомство (до 30 сек) или «-» для пропуска:")
 
@@ -275,12 +245,10 @@ async def reg_voice_skip(message: Message, state: FSMContext) -> None:
 async def _show_registration_summary(message: Message, state: FSMContext) -> None:
     d = await state.get_data()
     from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-    kb = InlineKeyboardMarkup(inline_keyboard=[
-        [
-            InlineKeyboardButton(text="✅ Подтвердить", callback_data="reg:confirm"),
-            InlineKeyboardButton(text="🔄 Начать заново", callback_data="reg:restart"),
-        ]
-    ])
+    kb = InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(text="✅ Подтвердить", callback_data="reg:confirm"),
+        InlineKeyboardButton(text="🔄 Начать заново", callback_data="reg:restart"),
+    ]])
     await message.answer(
         f"📋 <b>Твой профиль:</b>\n\n"
         f"Возраст: {d.get('age')}\n"
@@ -289,16 +257,16 @@ async def _show_registration_summary(message: Message, state: FSMContext) -> Non
         f"Цели: {d.get('relationship_goals')}\n"
         f"MBTI: {d.get('mbti_type') or '—'}\n"
         f"О себе: {d.get('about_me')}",
-        parse_mode="HTML",
-        reply_markup=kb,
+        parse_mode="HTML", reply_markup=kb,
     )
 
 
 @router.callback_query(F.data == "reg:confirm", RegistrationStates.confirm)
 async def reg_confirm(callback: CallbackQuery, state: FSMContext, user=None, session=None) -> None:
     await callback.answer()
-            d = await state.get_data()
-
+    if user is None:
+        return
+    d = await state.get_data()
     try:
         from database.repositories.profile_repository import ProfileRepository
         from database.repositories.user_repository import UserRepository
@@ -306,14 +274,9 @@ async def reg_confirm(callback: CallbackQuery, state: FSMContext, user=None, ses
 
         profile_repo = ProfileRepository(session)
         user_repo = UserRepository(session)
-
-        # Detect timezone from city
         city = d.get("city")
         timezone = detect_timezone_from_city(city)
-        
-        # Update user timezone
         await user_repo.update_timezone(user.id, timezone)
-
         await profile_repo.create_or_update(
             user_id=user.id,
             age=d.get("age"),
@@ -327,20 +290,16 @@ async def reg_confirm(callback: CallbackQuery, state: FSMContext, user=None, ses
         )
         await user_repo.mark_registered(user.id)
 
-        # Process referral if present
         referral_from = d.get("referral_from")
         if referral_from:
             from bot.services.referral_service import ReferralService
             from database.repositories.referral_repository import ReferralRepository
-            ref_repo = ReferralRepository(session)
-            ref_service = ReferralService(ref_repo, UserRepository(session))
-            await ref_service.process_referral(referral_from, user.id)
+            await ReferralService(ReferralRepository(session), user_repo).process_referral(referral_from, user.id)
 
         await state.clear()
         await callback.message.answer(
             "🎉 Профиль создан! Добро пожаловать в <b>Моя половинка</b>!",
-            parse_mode="HTML",
-            reply_markup=main_menu_keyboard(is_premium=False),
+            parse_mode="HTML", reply_markup=main_menu_keyboard(is_premium=False),
         )
         logger.info("registration_completed", user_id=user.id)
     except Exception as e:
@@ -355,17 +314,15 @@ async def reg_restart(callback: CallbackQuery, state: FSMContext) -> None:
     await callback.message.answer("🔄 Начинаем заново. Сколько тебе лет?")
 
 
-# ── ProfileEditStates handlers ────────────────────────────────────────────────
-
 @router.message(ProfileEditStates.edit_about_me)
 async def edit_about_me(message: Message, state: FSMContext, user=None, session=None) -> None:
-            try:
+    if user is None:
+        return
+    try:
         from database.repositories.profile_repository import ProfileRepository
-        repo = ProfileRepository(session)
-        await repo.update_about_me(user.id, message.text.strip())
+        await ProfileRepository(session).create_or_update(user_id=user.id, about_me=message.text.strip())
         await state.clear()
         await message.answer("✅ Текст «О себе» обновлён!", reply_markup=main_menu_keyboard(user.is_premium))
-        logger.info("about_me_updated", user_id=user.id)
     except Exception as e:
         logger.error("edit_about_me_error", user_id=user.id, error=str(e))
         await message.answer("Ошибка при обновлении. Попробуй позже.")
@@ -373,15 +330,15 @@ async def edit_about_me(message: Message, state: FSMContext, user=None, session=
 
 @router.message(ProfileEditStates.add_photo, F.photo)
 async def edit_add_photo(message: Message, state: FSMContext, user=None, session=None) -> None:
-            try:
+    if user is None:
+        return
+    try:
         from database.repositories.profile_repository import ProfileRepository
-        repo = ProfileRepository(session)
-        await repo.add_photo(user.id, message.photo[-1].file_id)
+        profile = await ProfileRepository(session).get_by_user_id(user.id)
+        if profile:
+            await ProfileRepository(session).add_photo(profile.id, message.photo[-1].file_id, 0)
         await state.clear()
         await message.answer("✅ Фото добавлено!", reply_markup=main_menu_keyboard(user.is_premium))
     except Exception as e:
         logger.error("add_photo_error", user_id=user.id, error=str(e))
         await message.answer("Ошибка при добавлении фото. Попробуй позже.")
-
-
-
