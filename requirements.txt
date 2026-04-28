@@ -12,7 +12,7 @@ psycopg2-binary==2.9.10
 redis==5.2.1
 
 # HTTP Client
-aiohttp==3.11.10
+aiohttp==3.10.11
 httpx==0.28.1
 
 # Config & Validation
