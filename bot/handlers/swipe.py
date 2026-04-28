@@ -150,7 +150,8 @@ async def swipe_like(callback: CallbackQuery, callback_data: SwipeCallback, stat
             UserRepository(session), ProfileRepository(session),
             swipe_repo, MatchRepository(session),
             AIService(GroqClient(), CacheManager()),
-        )        match = await matching.check_and_create_match(user.id, target_id)
+        )
+        match = await matching.check_and_create_match(user.id, target_id)
         if match:
             await callback.message.answer("🎉 <b>Взаимная симпатия!</b>\nТеперь вы можете общаться.", parse_mode="HTML")
             try:
