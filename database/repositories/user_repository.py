@@ -1,8 +1,8 @@
 from datetime import datetime
+from math import radians, cos, sin, asin, sqrt
 from typing import List, Optional
 
 import structlog
-from geoalchemy2.functions import ST_DWithin, ST_MakePoint, ST_SetSRID
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,6 +11,16 @@ from database.models.user import User
 from .base import BaseRepository
 
 logger = structlog.get_logger(__name__)
+
+
+def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Calculate distance in km between two coordinates."""
+    R = 6371.0
+    lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+    a = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
+    return 2 * R * asin(sqrt(a))
 
 
 class UserRepository(BaseRepository[User]):
@@ -49,11 +59,9 @@ class UserRepository(BaseRepository[User]):
         from database.models.profile import Profile
         from database.models.swipe import Swipe
 
-        point = ST_SetSRID(ST_MakePoint(lon, lat), 4326)
-        max_distance_m = max_distance_km * 1000
-
         already_swiped = select(Swipe.target_user_id).where(Swipe.user_id == user_id)
 
+        # Fetch candidates with lat/lon and filter by Haversine distance in Python
         stmt = (
             select(User)
             .join(Profile, Profile.user_id == User.id)
@@ -62,12 +70,24 @@ class UserRepository(BaseRepository[User]):
                 User.is_active.is_(True),
                 User.is_suspended.is_(False),
                 User.id.not_in(already_swiped),
-                ST_DWithin(Profile.location, point, max_distance_m),
+                Profile.latitude.isnot(None),
+                Profile.longitude.isnot(None),
             )
-            .limit(limit)
+            .limit(limit * 5)  # fetch extra to filter by distance
         )
         result = await self.session.execute(stmt)
-        return list(result.scalars().all())
+        users = list(result.scalars().all())
+
+        # Filter by distance using Haversine
+        filtered = []
+        for u in users:
+            if u.profile and u.profile.latitude and u.profile.longitude:
+                dist = _haversine_km(lat, lon, u.profile.latitude, u.profile.longitude)
+                if dist <= max_distance_km:
+                    filtered.append(u)
+                    if len(filtered) >= limit:
+                        break
+        return filtered
 
     async def get_all_active_users(
         self, exclude_user_id: int, limit: int = 50

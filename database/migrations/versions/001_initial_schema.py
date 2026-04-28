@@ -55,7 +55,6 @@ def upgrade() -> None:
         sa.Column("mbti_type", sa.String(8), nullable=True),
         sa.Column("attachment_style", sa.String(32), nullable=True),
         sa.Column("about_me", sa.Text(), nullable=True),
-        sa.Column("location", sa.Text(), nullable=True),  # replaced by geography column below
         sa.Column("latitude", sa.Float(), nullable=True),
         sa.Column("longitude", sa.Float(), nullable=True),
         sa.Column("verification_level", sa.SmallInteger(), nullable=False, server_default=sa.text("0")),
@@ -67,19 +66,6 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("user_id"),
-    )
-
-    # Add PostGIS geography column separately
-    op.execute(
-        "ALTER TABLE profiles DROP COLUMN IF EXISTS location"
-    )
-    op.execute(
-        "ALTER TABLE profiles ADD COLUMN location geography(POINT, 4326)"
-    )
-
-    # Spatial GIST index on profiles.location
-    op.execute(
-        "CREATE INDEX ix_profiles_location_gist ON profiles USING GIST (location)"
     )
 
     # profile_photos

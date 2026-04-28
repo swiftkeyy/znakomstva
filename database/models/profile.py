@@ -1,7 +1,6 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, List, Optional
 
-from geoalchemy2 import Geography
 from sqlalchemy import (
     BigInteger,
     DateTime,
@@ -38,10 +37,7 @@ class Profile(Base):
     attachment_style: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
     about_me: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
-    # PostGIS geography point (lon, lat)
-    location: Mapped[Optional[object]] = mapped_column(
-        Geography(geometry_type="POINT", srid=4326), nullable=True
-    )
+    # Coordinates stored as plain floats (no PostGIS required)
     latitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     longitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
 

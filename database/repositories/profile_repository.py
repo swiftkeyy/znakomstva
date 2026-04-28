@@ -1,7 +1,6 @@
 from typing import List, Optional
 
 import structlog
-from geoalchemy2.functions import ST_SetSRID, ST_MakePoint
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -94,6 +93,5 @@ class ProfileRepository(BaseRepository[Profile]):
             return
         profile.latitude = lat
         profile.longitude = lon
-        profile.location = ST_SetSRID(ST_MakePoint(lon, lat), 4326)
         await self.session.flush()
         logger.debug("location_updated", user_id=user_id, lat=lat, lon=lon)
