@@ -87,11 +87,11 @@ class ProfileRepository(BaseRepository[Profile]):
         logger.debug("interests_set", profile_id=profile_id, count=len(interests))
 
     async def update_location(self, user_id: int, lat: float, lon: float) -> None:
-        """Update profile location by user_id."""
-        profile = await self.get_by_user_id(user_id)
-        if profile is None:
-            return
-        profile.latitude = lat
-        profile.longitude = lon
+        """Update profile location by user_id using direct SQL."""
+        from sqlalchemy import text
+        await self.session.execute(
+            text("UPDATE profiles SET latitude = :lat, longitude = :lon WHERE user_id = :uid"),
+            {"lat": lat, "lon": lon, "uid": user_id}
+        )
         await self.session.flush()
         logger.debug("location_updated", user_id=user_id, lat=lat, lon=lon)
