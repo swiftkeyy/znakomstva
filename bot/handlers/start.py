@@ -30,10 +30,11 @@ async def cmd_start(message: Message, state: FSMContext, user=None) -> None:
 
     # If user has no profile — start registration
     if not user.is_registered:
-        await state.set_state(RegistrationStates.age)
+        await state.set_state(RegistrationStates.name)
         await message.answer(
             "👋 Добро пожаловать в <b>Моя половинка</b>!\n\n"
-            "Давай создадим твой профиль. Сколько тебе лет?",
+            "Давай создадим твой профиль.\n\n"
+            "Как тебя зовут?",
             parse_mode="HTML",
         )
         logger.info("registration_started", user_id=user.id)

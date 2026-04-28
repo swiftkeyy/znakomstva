@@ -55,13 +55,13 @@ class UserRepository(BaseRepository[User]):
         lon: float,
         max_distance_km: float,
         limit: int = 20,
+        looking_for: str = "any",
     ) -> List[User]:
         from database.models.profile import Profile
         from database.models.swipe import Swipe
 
         already_swiped = select(Swipe.target_user_id).where(Swipe.user_id == user_id)
 
-        # Fetch candidates with lat/lon and filter by Haversine distance in Python
         stmt = (
             select(User)
             .join(Profile, Profile.user_id == User.id)
@@ -73,12 +73,16 @@ class UserRepository(BaseRepository[User]):
                 Profile.latitude.isnot(None),
                 Profile.longitude.isnot(None),
             )
-            .limit(limit * 5)  # fetch extra to filter by distance
+            .limit(limit * 5)
         )
+
+        # Filter by gender preference
+        if looking_for and looking_for != "any":
+            stmt = stmt.where(Profile.gender == looking_for)
+
         result = await self.session.execute(stmt)
         users = list(result.scalars().all())
 
-        # Filter by distance using Haversine
         filtered = []
         for u in users:
             if u.profile and u.profile.latitude and u.profile.longitude:

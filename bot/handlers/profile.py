@@ -32,8 +32,12 @@ async def show_profile(message: Message, user=None, session=None) -> None:
         )
         photos = list(photos_result.scalars().all())
 
+        gender_map = {"male": "👨 Мужской", "female": "👩 Женский", "other": "🌈 Другой"}
+        looking_map = {"male": "👨 Парней", "female": "👩 Девушек", "any": "💫 Всех"}
         text = (
-            f"👤 <b>{user.first_name}</b>, {profile.age} лет\n"
+            f"👤 <b>{profile.name or user.first_name}</b>, {profile.age} лет\n"
+            f"⚧ {gender_map.get(profile.gender or '', '—')}\n"
+            f"🔍 Ищу: {looking_map.get(profile.looking_for or '', '—')}\n"
             f"📍 {profile.city or '—'}\n"
             f"📏 {profile.height or '—'} см\n"
             f"🎯 {profile.relationship_goals or '—'}\n"
@@ -134,6 +138,50 @@ async def profile_stories(callback: CallbackQuery, user=None, session=None) -> N
 
 
 # ── Registration FSM ──────────────────────────────────────────────────────────
+
+@router.message(RegistrationStates.name)
+async def reg_name(message: Message, state: FSMContext) -> None:
+    name = message.text.strip()
+    if len(name) < 2 or len(name) > 32:
+        await message.answer("Введи имя от 2 до 32 символов:")
+        return
+    await state.update_data(name=name)
+    await state.set_state(RegistrationStates.gender)
+    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="👨 Мужской", callback_data="reg_gender:male"),
+            InlineKeyboardButton(text="👩 Женский", callback_data="reg_gender:female"),
+        ],
+        [InlineKeyboardButton(text="🌈 Другой", callback_data="reg_gender:other")],
+    ])
+    await message.answer(f"Приятно познакомиться, {name}! 👋\n\nУкажи свой пол:", reply_markup=kb)
+
+
+@router.callback_query(F.data.startswith("reg_gender:"))
+async def reg_gender(callback: CallbackQuery, state: FSMContext) -> None:
+    await callback.answer()
+    gender = callback.data.split(":")[1]
+    await state.update_data(gender=gender)
+    await state.set_state(RegistrationStates.looking_for)
+    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="👨 Парней", callback_data="reg_looking:male"),
+            InlineKeyboardButton(text="👩 Девушек", callback_data="reg_looking:female"),
+        ],
+        [InlineKeyboardButton(text="💫 Всех", callback_data="reg_looking:any")],
+    ])
+    await callback.message.answer("Кого ты ищешь?", reply_markup=kb)
+
+
+@router.callback_query(F.data.startswith("reg_looking:"))
+async def reg_looking_for(callback: CallbackQuery, state: FSMContext) -> None:
+    await callback.answer()
+    looking_for = callback.data.split(":")[1]
+    await state.update_data(looking_for=looking_for)
+    await state.set_state(RegistrationStates.age)
+    await callback.message.answer("Сколько тебе лет?")
 
 @router.message(RegistrationStates.age)
 async def reg_age(message: Message, state: FSMContext) -> None:
@@ -250,6 +298,8 @@ async def reg_voice_skip(message: Message, state: FSMContext) -> None:
 
 async def _show_registration_summary(message: Message, state: FSMContext) -> None:
     d = await state.get_data()
+    gender_map = {"male": "👨 Мужской", "female": "👩 Женский", "other": "🌈 Другой"}
+    looking_map = {"male": "👨 Парней", "female": "👩 Девушек", "any": "💫 Всех"}
     from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
     kb = InlineKeyboardMarkup(inline_keyboard=[[
         InlineKeyboardButton(text="✅ Подтвердить", callback_data="reg:confirm"),
@@ -257,11 +307,13 @@ async def _show_registration_summary(message: Message, state: FSMContext) -> Non
     ]])
     await message.answer(
         f"📋 <b>Твой профиль:</b>\n\n"
+        f"Имя: {d.get('name')}\n"
+        f"Пол: {gender_map.get(d.get('gender', ''), '—')}\n"
+        f"Ищу: {looking_map.get(d.get('looking_for', ''), '—')}\n"
         f"Возраст: {d.get('age')}\n"
         f"Город: {d.get('city')}\n"
         f"Рост: {d.get('height') or '—'}\n"
         f"Цели: {d.get('relationship_goals')}\n"
-        f"MBTI: {d.get('mbti_type') or '—'}\n"
         f"О себе: {d.get('about_me')}",
         parse_mode="HTML", reply_markup=kb,
     )
@@ -285,6 +337,9 @@ async def reg_confirm(callback: CallbackQuery, state: FSMContext, user=None, ses
         await user_repo.update_timezone(user.id, timezone)
         await profile_repo.create_or_update(
             user_id=user.id,
+            name=d.get("name"),
+            gender=d.get("gender"),
+            looking_for=d.get("looking_for"),
             age=d.get("age"),
             city=city,
             height=d.get("height"),

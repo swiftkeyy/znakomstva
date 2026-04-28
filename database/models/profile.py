@@ -30,6 +30,9 @@ class Profile(Base):
     )
 
     age: Mapped[Optional[int]] = mapped_column(SmallInteger, nullable=True)
+    name: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    gender: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)  # male, female, other
+    looking_for: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)  # male, female, any
     city: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     height: Mapped[Optional[int]] = mapped_column(SmallInteger, nullable=True)
     relationship_goals: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)

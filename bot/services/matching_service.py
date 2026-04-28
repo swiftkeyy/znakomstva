@@ -55,6 +55,7 @@ class MatchingService:
                     lon=profile.longitude,
                     max_distance_km=50.0,
                     limit=20,
+                    looking_for=profile.looking_for or "any",
                 )
                 if not candidates:
                     return None  # Signal: local exhausted
