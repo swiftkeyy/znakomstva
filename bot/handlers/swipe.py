@@ -236,3 +236,52 @@ async def toggle_deep_search(message: Message, state: FSMContext, user=None, ses
 
 
 
+
+
+@router.callback_query(SwipeCallback.filter(F.action == "report"))
+async def swipe_report(callback: CallbackQuery, callback_data: SwipeCallback, user=None, session=None) -> None:
+    await callback.answer()
+    if user is None:
+        return
+    target_id = callback_data.user_id
+    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+    reasons = ["Фейк/спам", "Оскорбительный контент", "Несовершеннолетний", "Мошенничество", "Другое"]
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=r, callback_data=f"report_reason:{target_id}:{r}")] for r in reasons
+    ])
+    await callback.message.answer("🚩 Выбери причину жалобы:", reply_markup=kb)
+
+
+@router.callback_query(F.data.startswith("report_reason:"))
+async def report_reason(callback: CallbackQuery, user=None, session=None) -> None:
+    await callback.answer()
+    if user is None:
+        return
+    parts = callback.data.split(":", 2)
+    target_user_id = int(parts[1])
+    reason = parts[2]
+
+    # Find target user db id
+    from database.models.user import User
+    from sqlalchemy import select
+    result = await session.execute(select(User).where(User.telegram_id == target_user_id))
+    target = result.scalar_one_or_none()
+    if not target:
+        await callback.message.edit_reply_markup(reply_markup=None)
+        await callback.message.answer("❌ Пользователь не найден.")
+        return
+
+    from database.repositories.admin_repository import AdminRepository
+    await AdminRepository(session).create_report(user.id, target.id, reason)
+    await session.commit()
+
+    # Notify admins
+    from bot.config import settings
+    for admin_id in settings.admin_user_ids:
+        try:
+            await callback.bot.send_message(admin_id, f"🚩 Новая жалоба! /admin → Жалобы")
+        except Exception:
+            pass
+
+    await callback.message.edit_reply_markup(reply_markup=None)
+    await callback.message.answer("✅ Жалоба отправлена. Модераторы рассмотрят её в ближайшее время.")

@@ -31,21 +31,16 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
 
 
 async def init_db() -> None:
-    from database.models.base import Base  # noqa: F401 — import all models via __init__
+    from database.models.base import Base  # noqa: F401
     import database.models  # noqa: F401
+    from database.models import admin  # noqa: F401 — register admin models
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-        # Add new columns if they don't exist (safe migration)
-        await conn.execute(text(
-            "ALTER TABLE profiles ADD COLUMN IF NOT EXISTS name VARCHAR(64)"
-        ))
-        await conn.execute(text(
-            "ALTER TABLE profiles ADD COLUMN IF NOT EXISTS gender VARCHAR(16)"
-        ))
-        await conn.execute(text(
-            "ALTER TABLE profiles ADD COLUMN IF NOT EXISTS looking_for VARCHAR(16)"
-        ))
+        # Safe column migrations
+        await conn.execute(text("ALTER TABLE profiles ADD COLUMN IF NOT EXISTS name VARCHAR(64)"))
+        await conn.execute(text("ALTER TABLE profiles ADD COLUMN IF NOT EXISTS gender VARCHAR(16)"))
+        await conn.execute(text("ALTER TABLE profiles ADD COLUMN IF NOT EXISTS looking_for VARCHAR(16)"))
 
 
 async def close_db() -> None:

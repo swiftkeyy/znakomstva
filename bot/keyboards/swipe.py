@@ -12,4 +12,7 @@ def swipe_keyboard(candidate_user_id: int) -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="💬 Написать сразу", callback_data=SwipeCallback(action="write", user_id=candidate_user_id).pack()),
             InlineKeyboardButton(text="⭐ SuperSwipe", callback_data=SwipeCallback(action="super_like", user_id=candidate_user_id).pack()),
         ],
+        [
+            InlineKeyboardButton(text="🚩 Пожаловаться", callback_data=SwipeCallback(action="report", user_id=candidate_user_id).pack()),
+        ],
     ])

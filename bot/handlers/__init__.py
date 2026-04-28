@@ -12,6 +12,7 @@ from .stories import router as stories_router
 from .settings import router as settings_router
 from .stats import router as stats_router
 from .payments import router as payments_router
+from .admin import router as admin_router
 
 __all__ = [
     "register_all_handlers",
@@ -32,6 +33,7 @@ __all__ = [
 def register_all_handlers(dp: Dispatcher) -> None:
     """Include all routers into the dispatcher."""
     dp.include_router(start_router)
+    dp.include_router(admin_router)
     dp.include_router(profile_router)
     dp.include_router(swipe_router)
     dp.include_router(chat_router)
