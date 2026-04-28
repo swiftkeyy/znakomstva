@@ -106,30 +106,18 @@ class OpenRouterClient:
                 async with session.post(f"{self.base_url}{path}", json=payload) as resp:
                     resp.raise_for_status()
                     data = await resp.json()
-                    
-                    # Extract response from OpenRouter format
                     if "choices" in data and len(data["choices"]) > 0:
                         response_text = data["choices"][0]["message"]["content"]
-                        logger.debug(
-                            "openrouter_response",
-                            model=payload.get("model"),
-                            attempt=attempt + 1,
-                        )
+                        logger.debug("openrouter_response", model=payload.get("model"), attempt=attempt + 1)
                         return response_text
                     else:
                         raise ValueError("Invalid response format from OpenRouter")
-                        
-                except (aiohttp.ClientError, asyncio.TimeoutError) as e:
-                    last_error = e
-                    delay = 2 ** attempt
-                    logger.warning(
-                        "openrouter_retry",
-                        attempt=attempt + 1,
-                        delay=delay,
-                        error=str(e),
-                    )
-                    if attempt < max_retries - 1:
-                        await asyncio.sleep(delay)
+            except (aiohttp.ClientError, asyncio.TimeoutError, ValueError) as e:
+                last_error = e
+                delay = 2 ** attempt
+                logger.warning("openrouter_retry", attempt=attempt + 1, delay=delay, error=str(e))
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(delay)
 
         logger.error("openrouter_failed", error=str(last_error))
         raise RuntimeError(f"OpenRouter unavailable after {max_retries} attempts: {last_error}")

@@ -35,6 +35,10 @@ async def premium_callback(callback: CallbackQuery, callback_data: PremiumCallba
         from database.repositories.transaction_repository import TransactionRepository
         from bot.config import settings as cfg
 
+        if not cfg.telegram_payment_token:
+            await callback.message.answer("💳 Платежи временно недоступны. Обратись к администратору.")
+            return
+
         payment_service = PaymentService(UserRepository(session), TransactionRepository(session))
 
         if action in _PREMIUM_MONTHS:

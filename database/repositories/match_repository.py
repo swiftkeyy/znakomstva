@@ -43,3 +43,17 @@ class MatchRepository(BaseRepository[Match]):
 
     async def match_exists(self, user1_id: int, user2_id: int) -> bool:
         return await self.get_match(user1_id, user2_id) is not None
+
+    async def count_user_matches(self, user_id: int) -> int:
+        from sqlalchemy import func
+        result = await self.session.execute(
+            select(func.count()).where(
+                Match.is_active.is_(True),
+                or_(Match.user1_id == user_id, Match.user2_id == user_id),
+            )
+        )
+        return result.scalar() or 0
+
+    async def get_by_id(self, match_id: int) -> Optional[Match]:
+        result = await self.session.execute(select(Match).where(Match.id == match_id))
+        return result.scalar_one_or_none()
