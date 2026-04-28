@@ -71,3 +71,16 @@ class MessageRepository(BaseRepository[Message]):
             )
         )
         return result.scalar_one() or 0
+
+    async def create(self, match_id: int, sender_id: int, content: str, message_type: str = "text") -> Message:
+        """Alias for create_message."""
+        return await self.create_message(match_id, sender_id, content, message_type)
+
+    async def get_recent(self, match_id: int, limit: int = 10) -> List[Message]:
+        return await self.get_chat_history(match_id, limit=limit)
+
+    async def count_user_messages(self, user_id: int) -> int:
+        result = await self.session.execute(
+            select(func.count(Message.id)).where(Message.sender_id == user_id)
+        )
+        return result.scalar_one() or 0

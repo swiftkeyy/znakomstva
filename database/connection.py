@@ -1,5 +1,6 @@
 from typing import AsyncGenerator
 
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from bot.config import settings
@@ -35,6 +36,16 @@ async def init_db() -> None:
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # Add new columns if they don't exist (safe migration)
+        await conn.execute(text(
+            "ALTER TABLE profiles ADD COLUMN IF NOT EXISTS name VARCHAR(64)"
+        ))
+        await conn.execute(text(
+            "ALTER TABLE profiles ADD COLUMN IF NOT EXISTS gender VARCHAR(16)"
+        ))
+        await conn.execute(text(
+            "ALTER TABLE profiles ADD COLUMN IF NOT EXISTS looking_for VARCHAR(16)"
+        ))
 
 
 async def close_db() -> None:

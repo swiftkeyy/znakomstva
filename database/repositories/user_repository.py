@@ -201,3 +201,11 @@ class UserRepository(BaseRepository[User]):
         )
         await self.session.flush()
         logger.info("daily_reports_toggled", user_id=user_id, enabled=enabled)
+
+    async def delete_user(self, user_id: int) -> None:
+        """Soft delete - deactivate user."""
+        await self.session.execute(
+            update(User).where(User.id == user_id).values(is_active=False)
+        )
+        await self.session.flush()
+        logger.info("user_deleted", user_id=user_id)
