@@ -46,6 +46,9 @@ async def main() -> None:
     logger = structlog.get_logger(__name__)
     logger.info("bot_starting", version="1.0.0")
 
+    # Start health check server FIRST (before DB init)
+    asyncio.create_task(_start_health_server())
+
     # Init DB
     await init_db()
 
@@ -82,9 +85,6 @@ async def main() -> None:
     
     setup_all_jobs(scheduler, bot, AsyncSessionFactory)
     scheduler.start()
-
-    # Start health check server
-    asyncio.create_task(_start_health_server())
 
     logger.info("bot_started")
     try:
