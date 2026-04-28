@@ -165,14 +165,6 @@ async def reg_height(message: Message, state: FSMContext) -> None:
 @router.message(RegistrationStates.relationship_goals)
 async def reg_goals(message: Message, state: FSMContext) -> None:
     await state.update_data(relationship_goals=message.text.strip())
-    await state.set_state(RegistrationStates.mbti_type)
-    await message.answer("🧠 Твой тип MBTI (например, INFJ, ENTP) или «-» если не знаешь:")
-
-
-@router.message(RegistrationStates.mbti_type)
-async def reg_mbti(message: Message, state: FSMContext) -> None:
-    text = message.text.strip().upper()
-    await state.update_data(mbti_type=text if text != "-" else None)
     await state.set_state(RegistrationStates.attachment_style)
     await message.answer(
         "💞 Стиль привязанности?\n\n"

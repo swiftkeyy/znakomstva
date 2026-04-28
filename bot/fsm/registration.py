@@ -6,7 +6,6 @@ class RegistrationStates(StatesGroup):
     city = State()
     height = State()
     relationship_goals = State()
-    mbti_type = State()
     attachment_style = State()
     interests = State()
     about_me = State()
