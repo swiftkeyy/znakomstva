@@ -74,18 +74,14 @@ class AIService:
         """Rewrite 'about me' and suggest tags using AI."""
         if not self._ai_available():
             return {"about_me": profile.get("about_me", ""), "suggested_tags": []}
-        about_me = profile.get("about_me") or ""
-        if not about_me.strip():
+        about_me = str(profile.get("about_me") or "").strip()
+        if not about_me:
             return {"about_me": "", "suggested_tags": []}
-        # Simple focused prompt to avoid 400 errors
-        prompt = (
-            f"Улучши текст 'О себе' для приложения знакомств. "
-            f"Сделай его привлекательным и живым. "
-            f"Текущий текст: {about_me[:500]}\n\n"
-            f"Ответь в JSON: {{\"about_me\": \"улучшенный текст\", \"suggested_tags\": [\"тег1\", \"тег2\"]}}"
-        )
+        # Keep prompt minimal and clean
+        about_me_clean = about_me[:300].replace('"', "'").replace('\n', ' ')
+        prompt = f'Улучши текст для профиля знакомств: "{about_me_clean}". Ответь JSON: {{"about_me": "текст", "suggested_tags": ["тег1", "тег2"]}}'
         try:
-            response = await self.groq.generate(prompt, temperature=0.7, max_tokens=300)
+            response = await self.groq.generate(prompt, temperature=0.7, max_tokens=200)
             result = _parse_json(response)
             if result:
                 return result

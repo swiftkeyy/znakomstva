@@ -50,7 +50,10 @@ class GroqClient:
                     headers={"Authorization": f"Bearer {self.api_key}"},
                 ) as session:
                     async with session.post(f"{GROQ_BASE_URL}/chat/completions", json=payload) as resp:
-                        resp.raise_for_status()
+                        if resp.status != 200:
+                            body = await resp.text()
+                            logger.error("groq_error_body", status=resp.status, body=body[:300])
+                            resp.raise_for_status()
                         data = await resp.json()
                         return data["choices"][0]["message"]["content"]
             except Exception as e:
