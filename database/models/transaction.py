@@ -25,7 +25,7 @@ class Transaction(Base):
     amount: Mapped[int] = mapped_column(Integer, nullable=False)
     payment_method: Mapped[Optional[str]] = mapped_column(PaymentMethod, nullable=True)
     status: Mapped[str] = mapped_column(TransactionStatus, default="pending", nullable=False)
-    metadata: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON text
+    transaction_metadata: Mapped[Optional[str]] = mapped_column("metadata", Text, nullable=True)  # JSON text
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
