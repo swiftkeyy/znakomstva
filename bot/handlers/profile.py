@@ -60,6 +60,105 @@ async def profile_edit(callback: CallbackQuery, state: FSMContext, user=None, se
     await callback.message.answer("✏️ Введи новый текст «О себе»:")
 
 
+@router.callback_query(ProfileCallback.filter(F.action == "edit_full"))
+async def profile_edit_full(callback: CallbackQuery, user=None, session=None) -> None:
+    await callback.answer()
+    from bot.keyboards.profile import edit_profile_keyboard
+    await callback.message.answer("✏️ <b>Редактирование анкеты</b>\n\nВыбери что изменить:", parse_mode="HTML", reply_markup=edit_profile_keyboard())
+
+
+@router.callback_query(ProfileCallback.filter(F.action == "back"))
+async def profile_back(callback: CallbackQuery, user=None, session=None) -> None:
+    await callback.answer()
+    await callback.message.delete()
+
+
+@router.callback_query(ProfileCallback.filter(F.action == "edit_name"))
+async def profile_edit_name(callback: CallbackQuery, state: FSMContext, user=None, session=None) -> None:
+    await callback.answer()
+    await state.set_state(ProfileEditStates.edit_name)
+    await callback.message.answer("👤 Введи новое имя:")
+
+
+@router.callback_query(ProfileCallback.filter(F.action == "edit_age"))
+async def profile_edit_age(callback: CallbackQuery, state: FSMContext, user=None, session=None) -> None:
+    await callback.answer()
+    await state.set_state(ProfileEditStates.edit_age)
+    await callback.message.answer("🎂 Введи новый возраст:")
+
+
+@router.callback_query(ProfileCallback.filter(F.action == "edit_city"))
+async def profile_edit_city(callback: CallbackQuery, state: FSMContext, user=None, session=None) -> None:
+    await callback.answer()
+    await state.set_state(ProfileEditStates.edit_city)
+    await callback.message.answer("📍 Введи новый город:")
+
+
+@router.callback_query(ProfileCallback.filter(F.action == "edit_height"))
+async def profile_edit_height(callback: CallbackQuery, state: FSMContext, user=None, session=None) -> None:
+    await callback.answer()
+    await state.set_state(ProfileEditStates.edit_height)
+    await callback.message.answer("📏 Введи новый рост (см) или «-» для пропуска:")
+
+
+@router.callback_query(ProfileCallback.filter(F.action == "edit_goals"))
+async def profile_edit_goals(callback: CallbackQuery, state: FSMContext, user=None, session=None) -> None:
+    await callback.answer()
+    await state.set_state(ProfileEditStates.edit_goals)
+    await callback.message.answer("🎯 Введи новые цели (серьёзные отношения, дружба, флирт и т.д.):")
+
+
+@router.callback_query(ProfileCallback.filter(F.action == "edit_about"))
+async def profile_edit_about(callback: CallbackQuery, state: FSMContext, user=None, session=None) -> None:
+    await callback.answer()
+    await state.set_state(ProfileEditStates.edit_about_me)
+    await callback.message.answer("💬 Введи новый текст «О себе»:")
+
+
+@router.callback_query(ProfileCallback.filter(F.action == "edit_gender"))
+async def profile_edit_gender(callback: CallbackQuery, state: FSMContext, user=None, session=None) -> None:
+    await callback.answer()
+    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="👨 Мужской", callback_data="edit_gender:male"), InlineKeyboardButton(text="👩 Женский", callback_data="edit_gender:female")],
+        [InlineKeyboardButton(text="🌈 Другой", callback_data="edit_gender:other")],
+    ])
+    await callback.message.answer("⚧ Выбери пол:", reply_markup=kb)
+
+
+@router.callback_query(F.data.startswith("edit_gender:"))
+async def profile_save_gender(callback: CallbackQuery, user=None, session=None) -> None:
+    await callback.answer()
+    gender = callback.data.split(":")[1]
+    from sqlalchemy import text
+    await session.execute(text("UPDATE profiles SET gender = :g WHERE user_id = :uid"), {"g": gender, "uid": user.id})
+    await session.flush()
+    await callback.message.edit_reply_markup(reply_markup=None)
+    await callback.message.answer("✅ Пол обновлён!")
+
+
+@router.callback_query(ProfileCallback.filter(F.action == "edit_looking"))
+async def profile_edit_looking(callback: CallbackQuery, user=None, session=None) -> None:
+    await callback.answer()
+    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="👨 Парней", callback_data="edit_looking:male"), InlineKeyboardButton(text="👩 Девушек", callback_data="edit_looking:female")],
+        [InlineKeyboardButton(text="💫 Всех", callback_data="edit_looking:any")],
+    ])
+    await callback.message.answer("🔍 Кого ищешь?", reply_markup=kb)
+
+
+@router.callback_query(F.data.startswith("edit_looking:"))
+async def profile_save_looking(callback: CallbackQuery, user=None, session=None) -> None:
+    await callback.answer()
+    looking = callback.data.split(":")[1]
+    from sqlalchemy import text
+    await session.execute(text("UPDATE profiles SET looking_for = :l WHERE user_id = :uid"), {"l": looking, "uid": user.id})
+    await session.flush()
+    await callback.message.edit_reply_markup(reply_markup=None)
+    await callback.message.answer("✅ Предпочтения обновлены!")
+
+
 @router.callback_query(ProfileCallback.filter(F.action == "photos"))
 async def profile_photos(callback: CallbackQuery, state: FSMContext, user=None, session=None) -> None:
     await callback.answer()
@@ -394,6 +493,78 @@ async def edit_about_me(message: Message, state: FSMContext, user=None, session=
     except Exception as e:
         logger.error("edit_about_me_error", user_id=user.id, error=str(e))
         await message.answer("Ошибка при обновлении. Попробуй позже.")
+
+
+@router.message(ProfileEditStates.edit_name)
+async def edit_name(message: Message, state: FSMContext, user=None, session=None) -> None:
+    if user is None:
+        return
+    name = message.text.strip()
+    if len(name) < 2:
+        await message.answer("Имя слишком короткое. Введи ещё раз:")
+        return
+    from sqlalchemy import text
+    await session.execute(text("UPDATE profiles SET name = :n WHERE user_id = :uid"), {"n": name, "uid": user.id})
+    await session.flush()
+    await state.clear()
+    await message.answer(f"✅ Имя обновлено: {name}")
+
+
+@router.message(ProfileEditStates.edit_age)
+async def edit_age(message: Message, state: FSMContext, user=None, session=None) -> None:
+    if user is None:
+        return
+    try:
+        age = int(message.text.strip())
+        if not (16 <= age <= 100):
+            raise ValueError
+        from database.repositories.profile_repository import ProfileRepository
+        await ProfileRepository(session).create_or_update(user_id=user.id, age=age)
+        await state.clear()
+        await message.answer(f"✅ Возраст обновлён: {age}")
+    except ValueError:
+        await message.answer("Введи корректный возраст (16–100):")
+
+
+@router.message(ProfileEditStates.edit_city)
+async def edit_city(message: Message, state: FSMContext, user=None, session=None) -> None:
+    if user is None:
+        return
+    city = message.text.strip()
+    from database.repositories.profile_repository import ProfileRepository
+    await ProfileRepository(session).create_or_update(user_id=user.id, city=city)
+    await state.clear()
+    await message.answer(f"✅ Город обновлён: {city}")
+
+
+@router.message(ProfileEditStates.edit_height)
+async def edit_height(message: Message, state: FSMContext, user=None, session=None) -> None:
+    if user is None:
+        return
+    text_val = message.text.strip()
+    height = None
+    if text_val != "-":
+        try:
+            height = int(text_val)
+            if not (100 <= height <= 250):
+                raise ValueError
+        except ValueError:
+            await message.answer("Введи рост от 100 до 250 см, или «-»:")
+            return
+    from database.repositories.profile_repository import ProfileRepository
+    await ProfileRepository(session).create_or_update(user_id=user.id, height=height)
+    await state.clear()
+    await message.answer(f"✅ Рост обновлён: {height or '—'} см")
+
+
+@router.message(ProfileEditStates.edit_goals)
+async def edit_goals(message: Message, state: FSMContext, user=None, session=None) -> None:
+    if user is None:
+        return
+    from database.repositories.profile_repository import ProfileRepository
+    await ProfileRepository(session).create_or_update(user_id=user.id, relationship_goals=message.text.strip())
+    await state.clear()
+    await message.answer("✅ Цели обновлены!")
 
 
 @router.message(ProfileEditStates.add_photo, F.photo)
