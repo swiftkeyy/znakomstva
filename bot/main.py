@@ -2,7 +2,6 @@
 import asyncio
 import logging
 
-import sentry_sdk
 import structlog
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
@@ -34,14 +33,8 @@ def configure_logging() -> None:
     )
 
 
-def configure_sentry() -> None:
-    if settings.sentry_dsn:
-        sentry_sdk.init(dsn=settings.sentry_dsn, traces_sample_rate=0.1)
-
-
 async def main() -> None:
     configure_logging()
-    configure_sentry()
 
     logger = structlog.get_logger(__name__)
     logger.info("bot_starting", version="1.0.0")

@@ -40,7 +40,6 @@ class Settings(BaseSettings):
     yukassa_secret_key: str = Field(default="")
 
     # Monitoring
-    sentry_dsn: str = Field(default="")
     log_level: str = Field(default="INFO")
 
     # Features
