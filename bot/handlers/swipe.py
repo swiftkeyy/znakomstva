@@ -277,7 +277,7 @@ async def report_reason(callback: CallbackQuery, user=None, session=None) -> Non
 
     # Notify admins
     from bot.config import settings
-    for admin_id in settings.admin_user_ids:
+    for admin_id in settings.get_admin_ids():
         try:
             await callback.bot.send_message(admin_id, f"🚩 Новая жалоба! /admin → Жалобы")
         except Exception:
@@ -285,3 +285,4 @@ async def report_reason(callback: CallbackQuery, user=None, session=None) -> Non
 
     await callback.message.edit_reply_markup(reply_markup=None)
     await callback.message.answer("✅ Жалоба отправлена. Модераторы рассмотрят её в ближайшее время.")
+

@@ -15,7 +15,7 @@ ROLES = {"superadmin": "👑 Главный админ", "moderator": "🛡 Мо
 
 async def _get_role(telegram_id: int, session) -> str:
     """Return role string or empty string."""
-    if telegram_id in settings.admin_user_ids:
+    if telegram_id in settings.get_admin_ids():
         return "superadmin"
     from database.repositories.admin_repository import AdminRepository
     return await AdminRepository(session).get_role(telegram_id) or ""
@@ -535,3 +535,4 @@ async def adm_back(callback: CallbackQuery, user=None, session=None) -> None:
         parse_mode="HTML",
         reply_markup=_admin_menu_kb(role),
     )
+

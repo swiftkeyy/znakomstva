@@ -78,7 +78,7 @@ async def _submit_to_queue(message: Message, state: FSMContext, user, session, f
             except Exception:
                 pass
         # Also notify superadmins from config
-        for admin_id in settings.admin_user_ids:
+        for admin_id in settings.get_admin_ids():
             try:
                 await message.bot.send_message(admin_id, f"🔔 Новая верификация в очереди! /admin → Верификации")
             except Exception:
@@ -114,3 +114,4 @@ async def verify_level_3_photo(message: Message, state: FSMContext, user=None, s
     if user is None:
         return
     await _submit_to_queue(message, state, user, session, message.photo[-1].file_id, "photo")
+

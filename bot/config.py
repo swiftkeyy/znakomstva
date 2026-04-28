@@ -16,20 +16,13 @@ class Settings(BaseSettings):
     # Bot
     bot_token: str
     bot_username: str = Field(default="")
-    admin_user_ids: List[int] = Field(default_factory=list)
+    admin_user_ids: str = Field(default="")  # comma-separated telegram IDs
 
-    @field_validator("admin_user_ids", mode="before")
-    @classmethod
-    def parse_admin_ids(cls, v):
-        if isinstance(v, list):
-            return v
-        if isinstance(v, str):
-            v = v.strip()
-            # Accept: 123456789 or 123,456 or [123,456]
-            if v.startswith("["):
-                return json.loads(v)
-            return [int(x.strip()) for x in v.split(",") if x.strip().isdigit()]
-        return v
+    def get_admin_ids(self) -> list:
+        if not self.admin_user_ids:
+            return []
+        v = self.admin_user_ids.strip().strip("[]")
+        return [int(x.strip()) for x in v.split(",") if x.strip().lstrip("-").isdigit()]
 
     # Database
     database_url: str
