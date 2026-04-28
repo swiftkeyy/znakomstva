@@ -34,10 +34,8 @@ class Settings(BaseSettings):
     openrouter_reasoning_model: str = Field(default=OPENROUTER_MODEL_REASONING)
     openrouter_timeout: int = Field(default=60)
 
-    # Payments
-    telegram_payment_token: str = Field(default="")
-    yukassa_shop_id: str = Field(default="")
-    yukassa_secret_key: str = Field(default="")
+    # Payments (Telegram Stars only)
+    # No provider token needed for Stars
 
     # Monitoring
     log_level: str = Field(default="INFO")

@@ -1,9 +1,9 @@
-"""Premium handler — subscriptions and crystal packages."""
+"""Premium handler — Telegram Stars payments only."""
 import structlog
 from aiogram import F, Router
 from aiogram.types import CallbackQuery, LabeledPrice, Message
 
-from bot.keyboards import PremiumCallback, main_menu_keyboard, premium_keyboard
+from bot.keyboards import PremiumCallback, premium_keyboard
 
 logger = structlog.get_logger(__name__)
 router = Router(name="premium")
@@ -18,8 +18,12 @@ async def show_premium(message: Message, user=None, session=None) -> None:
         return
     status = "✅ Premium активен" if user.is_premium else "❌ Premium не активен"
     await message.answer(
-        f"💎 <b>Бусты и кристаллы</b>\n\nСтатус: {status}\n💠 Кристаллов: {user.crystals}\n\nВыбери пакет:",
-        parse_mode="HTML", reply_markup=premium_keyboard(),
+        f"💎 <b>Бусты и кристаллы</b>\n\n"
+        f"Статус: {status}\n"
+        f"💠 Кристаллов: {user.crystals}\n\n"
+        f"Оплата через ⭐ Telegram Stars\n\nВыбери пакет:",
+        parse_mode="HTML",
+        reply_markup=premium_keyboard(),
     )
 
 
@@ -33,11 +37,6 @@ async def premium_callback(callback: CallbackQuery, callback_data: PremiumCallba
         from bot.services.payment_service import PaymentService
         from database.repositories.user_repository import UserRepository
         from database.repositories.transaction_repository import TransactionRepository
-        from bot.config import settings as cfg
-
-        if not cfg.telegram_payment_token:
-            await callback.message.answer("💳 Платежи временно недоступны. Обратись к администратору.")
-            return
 
         payment_service = PaymentService(UserRepository(session), TransactionRepository(session))
 
@@ -50,11 +49,16 @@ async def premium_callback(callback: CallbackQuery, callback_data: PremiumCallba
             return
 
         prices = [LabeledPrice(label=p["label"], amount=p["amount"]) for p in invoice["prices"]]
+        # Telegram Stars: provider_token must be empty string
         await callback.message.answer_invoice(
-            title=invoice["title"], description=invoice["description"],
-            payload=invoice["payload"], provider_token=cfg.telegram_payment_token,
-            currency=invoice["currency"], prices=prices,
+            title=invoice["title"],
+            description=invoice["description"],
+            payload=invoice["payload"],
+            provider_token="",
+            currency="XTR",
+            prices=prices,
         )
+        logger.info("stars_invoice_sent", user_id=user.id, action=action)
     except Exception as e:
         logger.error("premium_callback_error", user_id=user.id, action=action, error=str(e))
         await callback.message.answer("Не удалось создать счёт. Попробуй позже.")
