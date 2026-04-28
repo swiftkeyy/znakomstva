@@ -98,7 +98,8 @@ async def main() -> None:
 
 
 async def _start_health_server() -> None:
-    """Minimal health check HTTP server on port 8000."""
+    """Minimal health check HTTP server on Railway's PORT."""
+    import os
     from aiohttp import web
 
     async def health(_request):
@@ -108,7 +109,10 @@ async def _start_health_server() -> None:
     app.router.add_get("/health", health)
     runner = web.AppRunner(app)
     await runner.setup()
-    site = web.TCPSite(runner, "0.0.0.0", 8000)
+    
+    # Use Railway's PORT environment variable, fallback to 8000
+    port = int(os.getenv("PORT", "8000"))
+    site = web.TCPSite(runner, "0.0.0.0", port)
     await site.start()
 
 
