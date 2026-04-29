@@ -24,6 +24,10 @@ async def show_stats(message: Message, user=None, session=None) -> None:
         referrals_count = await ReferralRepository(session).count_referrals_this_month(user.id)
         premium_badge = "💎 Premium" if user.is_premium else "🆓 Бесплатный"
 
+        from bot.config import settings
+        bot_username = settings.bot_username or "your_bot"
+        ref_link = f"https://t.me/{bot_username}?start=ref_{user.id}"
+
         await message.answer(
             f"📊 <b>Твоя статистика</b>\n\n"
             f"👤 Статус: {premium_badge}\n"
@@ -31,7 +35,11 @@ async def show_stats(message: Message, user=None, session=None) -> None:
             f"❤️ Совпадений: {matches_count}\n"
             f"💬 Сообщений отправлено: {messages_count}\n"
             f"👁 Просмотров профиля: {profile_views}\n"
-            f"👥 Рефералов (этот месяц): {referrals_count}",
+            f"👥 Рефералов (этот месяц): {referrals_count}\n\n"
+            f"🔗 <b>Твоя реферальная ссылка:</b>\n"
+            f"<code>{ref_link}</code>\n\n"
+            f"За каждого друга: +100 💠\n"
+            f"Если друг купит Premium: +500 💠",
             parse_mode="HTML",
         )
     except Exception as e:

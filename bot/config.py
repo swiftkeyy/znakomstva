@@ -21,8 +21,13 @@ class Settings(BaseSettings):
     def get_admin_ids(self) -> list:
         if not self.admin_user_ids:
             return []
-        v = self.admin_user_ids.strip().strip("[]")
-        return [int(x.strip()) for x in v.split(",") if x.strip().lstrip("-").isdigit()]
+        v = self.admin_user_ids.strip().strip("[]").strip()
+        result = []
+        for x in v.split(","):
+            x = x.strip().strip('"').strip("'")
+            if x.lstrip("-").isdigit():
+                result.append(int(x))
+        return result
 
     # Database
     database_url: str

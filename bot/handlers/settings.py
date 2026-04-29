@@ -55,8 +55,32 @@ async def handle_location(message: Message, user=None, session=None) -> None:
         await message.answer("Не удалось обновить геолокацию. Попробуй позже.")
 
 
-@router.callback_query(SettingsCallback.filter(F.action == "delete"))
-async def settings_delete(callback: CallbackQuery, user=None, session=None) -> None:
+@router.callback_query(SettingsCallback.filter(F.action == "support"))
+async def settings_support(callback: CallbackQuery, user=None, session=None) -> None:
+    await callback.answer()
+    from bot.config import settings as cfg
+    admin_ids = cfg.get_admin_ids()
+    # Send message to all admins
+    if admin_ids:
+        for admin_id in admin_ids:
+            try:
+                await callback.bot.send_message(
+                    admin_id,
+                    f"📞 <b>Обращение в поддержку</b>\n\n"
+                    f"От: {callback.from_user.first_name} (@{callback.from_user.username or '—'})\n"
+                    f"ID: {callback.from_user.id}\n\n"
+                    f"Пользователь обратился в поддержку.",
+                    parse_mode="HTML",
+                )
+            except Exception:
+                pass
+    await callback.message.answer(
+        "📞 <b>Поддержка</b>\n\n"
+        "Твоё обращение отправлено администраторам.\n"
+        "Мы ответим тебе в ближайшее время.\n\n"
+        "Если хочешь описать проблему — просто напиши следующее сообщение.",
+        parse_mode="HTML",
+    )
     await callback.answer()
     from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
     kb = InlineKeyboardMarkup(inline_keyboard=[[
