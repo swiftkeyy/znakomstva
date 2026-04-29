@@ -59,28 +59,23 @@ async def handle_location(message: Message, user=None, session=None) -> None:
 async def settings_support(callback: CallbackQuery, user=None, session=None) -> None:
     await callback.answer()
     from bot.config import settings as cfg
-    admin_ids = cfg.get_admin_ids()
-    # Send message to all admins
-    if admin_ids:
-        for admin_id in admin_ids:
-            try:
-                await callback.bot.send_message(
-                    admin_id,
-                    f"📞 <b>Обращение в поддержку</b>\n\n"
-                    f"От: {callback.from_user.first_name} (@{callback.from_user.username or '—'})\n"
-                    f"ID: {callback.from_user.id}\n\n"
-                    f"Пользователь обратился в поддержку.",
-                    parse_mode="HTML",
-                )
-            except Exception:
-                pass
+    for admin_id in cfg.get_admin_ids():
+        try:
+            await callback.bot.send_message(
+                admin_id,
+                f"📞 <b>Обращение в поддержку</b>\n\nОт: {callback.from_user.first_name} (@{callback.from_user.username or '—'})\nID: {callback.from_user.id}",
+                parse_mode="HTML",
+            )
+        except Exception:
+            pass
     await callback.message.answer(
-        "📞 <b>Поддержка</b>\n\n"
-        "Твоё обращение отправлено администраторам.\n"
-        "Мы ответим тебе в ближайшее время.\n\n"
-        "Если хочешь описать проблему — просто напиши следующее сообщение.",
+        "📞 <b>Поддержка</b>\n\nТвоё обращение отправлено администраторам.\nМы ответим тебе в ближайшее время.",
         parse_mode="HTML",
     )
+
+
+@router.callback_query(SettingsCallback.filter(F.action == "delete"))
+async def settings_delete(callback: CallbackQuery, user=None, session=None) -> None:
     await callback.answer()
     from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
     kb = InlineKeyboardMarkup(inline_keyboard=[[
@@ -99,7 +94,7 @@ async def settings_delete_confirm(callback: CallbackQuery, state: FSMContext, us
         from database.repositories.user_repository import UserRepository
         await UserRepository(session).delete_user(user.id)
         await state.clear()
-        await callback.message.answer("🗑 Профиль удалён. Спасибо, что был с нами!\nИспользуй /start для новой регистрации.")
+        await callback.message.answer("🗑 Профиль удалён. Используй /start для новой регистрации.")
     except Exception as e:
         logger.error("delete_confirm_error", user_id=user.id, error=str(e))
         await callback.message.answer("Ошибка при удалении. Попробуй позже.")
@@ -116,5 +111,3 @@ async def settings_logout(callback: CallbackQuery, state: FSMContext, user=None,
     await callback.answer()
     await state.clear()
     await callback.message.answer("👋 Ты вышел из аккаунта.\nИспользуй /start для входа.")
-
-
