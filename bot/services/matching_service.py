@@ -37,27 +37,45 @@ class MatchingService:
         try:
             profile = await self.profile_repo.get_by_user_id(user.id)
             has_location = profile and profile.latitude is not None and profile.longitude is not None
-
-            user_dict = {
-                "id": user.id,
-                "about_me": profile.about_me if profile else None,
-                "age": profile.age if profile else None,
-                "relationship_goals": profile.relationship_goals if profile else None,
-                "latitude": profile.latitude if profile else None,
-                "longitude": profile.longitude if profile else None,
-            }
+            looking_for = (profile.looking_for or "any") if profile else "any"
 
             if has_location and not expand_search:
-                # Local search first (50km)
                 candidates = await self.user_repo.get_candidates_for_swipe(
                     user_id=user.id,
                     lat=profile.latitude,
                     lon=profile.longitude,
                     max_distance_km=50.0,
                     limit=20,
-                    looking_for=profile.looking_for or "any",
+                    looking_for=looking_for,
                 )
                 if not candidates:
+                    return None  # Signal: local exhausted
+            else:
+                # No location or expand — show all users regardless of coordinates
+                candidates = await self.user_repo.get_all_active_users(
+                    exclude_user_id=user.id, limit=20
+                )
+
+            if not candidates:
+                return None
+
+            best_candidate = candidates[0]
+            score = 75.0
+
+            try:
+                cand_profile = await self.profile_repo.get_by_user_id(best_candidate.id)
+                user_dict = {"id": user.id, "about_me": profile.about_me if profile else None, "age": profile.age if profile else None}
+                cand_dict = {"id": best_candidate.id, "about_me": cand_profile.about_me if cand_profile else None, "age": cand_profile.age if cand_profile else None}
+                compat = await self.ai_service.calculate_compatibility(user_dict, cand_dict)
+                score = float(compat.get("score", 75))
+            except Exception:
+                pass
+
+            return best_candidate, score, ""
+
+        except Exception as e:
+            logger.error("get_next_candidate_error", user_id=user.id, error=str(e))
+            return None
                     return None  # Signal: local exhausted
             elif has_location and expand_search:
                 # Expanded search - all users sorted by distance

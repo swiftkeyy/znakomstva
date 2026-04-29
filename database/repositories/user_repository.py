@@ -209,3 +209,5 @@ class UserRepository(BaseRepository[User]):
         )
         await self.session.flush()
         logger.info("user_deleted", user_id=user_id)
+
+    async def update_last_active(self, user_id: int) -> None:
