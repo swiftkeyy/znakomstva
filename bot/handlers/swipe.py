@@ -109,6 +109,8 @@ async def _show_next_candidate(message, state, user, session):
 async def swipe_start(message: Message, state: FSMContext, user=None, session=None) -> None:
     if user is None:
         return
+    # Reset expand_search on each new search session
+    await state.update_data(expand_search=False)
     await _show_next_candidate(message, state, user, session)
 
 
