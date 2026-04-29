@@ -113,6 +113,11 @@ class UserRepository(BaseRepository[User]):
             .where(User.id == user_id)
             .values(last_active_at=func.now())
         )
+        await self.session.flush()        await self.session.execute(
+            update(User)
+            .where(User.id == user_id)
+            .values(last_active_at=func.now())
+        )
         await self.session.flush()
 
     async def add_crystals(self, user_id: int, amount: int) -> None:
